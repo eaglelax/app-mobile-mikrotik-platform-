@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../models/site.dart';
-import '../../providers/site_provider.dart';
 import '../../services/ticket_service.dart';
 import '../../utils/constants.dart';
 import '../../widgets/site_selector.dart';
@@ -19,6 +17,7 @@ class TicketsListScreen extends StatefulWidget {
 class _TicketsListScreenState extends State<TicketsListScreen> {
   final _service = TicketService();
   Site? _site;
+  List<Map<String, dynamic>> _allTickets = [];
   List<Map<String, dynamic>> _tickets = [];
   bool _loading = false;
   String? _statusFilter;
@@ -34,11 +33,20 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
     if (_site == null) return;
     setState(() => _loading = true);
     try {
-      final data = await _service.fetchTickets(_site!.id, status: _statusFilter);
-      _tickets =
+      final data = await _service.fetchTickets(_site!.id);
+      _allTickets =
           (data['vouchers'] ?? data['tickets'] as List? ?? []).cast<Map<String, dynamic>>();
+      _applyFilter();
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
+  }
+
+  void _applyFilter() {
+    if (_statusFilter == null) {
+      _tickets = _allTickets;
+    } else {
+      _tickets = _allTickets.where((t) => t['status'] == _statusFilter).toList();
+    }
   }
 
   @override
@@ -101,8 +109,10 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                       label: Text(f.$2),
                       selected: _statusFilter == f.$1,
                       onSelected: (_) {
-                        setState(() => _statusFilter = f.$1);
-                        _load();
+                        setState(() {
+                          _statusFilter = f.$1;
+                          _applyFilter();
+                        });
                       },
                       selectedColor: AppTheme.primary.withValues(alpha: 0.2),
                     ),

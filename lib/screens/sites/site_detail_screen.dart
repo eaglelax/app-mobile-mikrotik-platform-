@@ -30,7 +30,16 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
   Future<void> _loadStats() async {
     setState(() => _loading = true);
     try {
-      _stats = await _service.fetchStats(widget.site.id);
+      final raw = await _service.fetchStats(widget.site.id);
+      final data = raw['data'] is Map<String, dynamic>
+          ? raw['data'] as Map<String, dynamic>
+          : raw;
+      _stats = {
+        'today_revenue': data['revenue'] ?? 0,
+        'today_sales': data['sold'] ?? 0,
+        'unsold_vouchers': data['available'] ?? 0,
+        'active_users': 0,
+      };
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }

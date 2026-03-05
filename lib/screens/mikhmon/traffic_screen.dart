@@ -26,7 +26,10 @@ class _TrafficScreenState extends State<TrafficScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      _data = await _service.fetchTraffic(widget.site.id);
+      final raw = await _service.fetchTraffic(widget.site.id);
+      _data = raw['data'] is Map<String, dynamic>
+          ? raw['data'] as Map<String, dynamic>
+          : raw;
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }
@@ -57,12 +60,12 @@ class _TrafficScreenState extends State<TrafficScreen> {
                           _TrafficRow(
                               'Download',
                               Fmt.bytes(
-                                  _data?['rx_bytes'] ?? _data?['download'] ?? 0),
+                                  _data?['rx'] ?? _data?['rx_bytes'] ?? 0),
                               AppTheme.primary),
                           _TrafficRow(
                               'Upload',
                               Fmt.bytes(
-                                  _data?['tx_bytes'] ?? _data?['upload'] ?? 0),
+                                  _data?['tx'] ?? _data?['tx_bytes'] ?? 0),
                               AppTheme.accent),
                         ],
                       ),

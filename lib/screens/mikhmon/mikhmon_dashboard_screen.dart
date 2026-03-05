@@ -34,7 +34,18 @@ class _MikhmonDashboardScreenState extends State<MikhmonDashboardScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      _stats = await _service.fetchDashboard(widget.site.id);
+      final data = await _service.fetchDashboard(widget.site.id);
+      _stats = {
+        'active_users': data['active']?['count'] ?? 0,
+        'total_vouchers': data['users']?['count'] ?? 0,
+        'unsold_vouchers': data['users']?['unsold_vouchers'] ?? 0,
+        'revenue': data['sales_today']?['revenue'] ?? 0,
+        'connected': data['connected'] ?? false,
+        'identity': data['identity'] ?? '',
+        'system': data['system'],
+        'sessions': data['active']?['sessions'] ?? [],
+        'logs': data['logs'] ?? [],
+      };
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }

@@ -53,9 +53,9 @@ class MikhmonService {
 
   Future<Map<String, dynamic>> flashSale(
       int siteId, String profile, {int? pointId}) async {
-    return await _api.post('/mikhmon/flash-sale.php?site_id=$siteId', {
+    return await _api.postForm('/mikhmon/flash-sale.php?site_id=$siteId', {
       'profile': profile,
-      'point_id': pointId ?? '',
+      if (pointId != null) 'point_id': pointId.toString(),
     });
   }
 

@@ -9,7 +9,7 @@ class PointServiceApi {
     final data = await _api.get(ApiConfig.points, {
       'site_id': siteId.toString(),
     });
-    final list = data['points'] as List? ?? [];
+    final list = data['data'] as List? ?? data['points'] as List? ?? [];
     return list.map((p) => Point.fromJson(p)).toList();
   }
 

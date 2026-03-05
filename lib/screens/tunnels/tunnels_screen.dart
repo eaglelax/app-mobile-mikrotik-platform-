@@ -25,7 +25,7 @@ class _TunnelsScreenState extends State<TunnelsScreen> {
     try {
       final data = await _service.fetchAll();
       _tunnels =
-          (data['tunnels'] ?? data['vpn'] as List? ?? []).cast<Map<String, dynamic>>();
+          (data['peers'] ?? data['tunnels'] as List? ?? []).cast<Map<String, dynamic>>();
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }

@@ -16,8 +16,10 @@ class SalesScreen extends StatefulWidget {
 class _SalesScreenState extends State<SalesScreen> {
   final _api = ApiClient();
   Site? _site;
+  List<Map<String, dynamic>> _allSales = [];
   List<Map<String, dynamic>> _sales = [];
   bool _loading = false;
+  String _period = 'today';
 
   @override
   void initState() {
@@ -33,9 +35,45 @@ class _SalesScreenState extends State<SalesScreen> {
       final data = await _api.get('/api/sync-sales.php', {
         'site_id': _site!.id.toString(),
       });
-      _sales = (data['sales'] as List? ?? []).cast<Map<String, dynamic>>();
+      _allSales = (data['sales'] as List? ?? []).cast<Map<String, dynamic>>();
+      _applyPeriodFilter();
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
+  }
+
+  void _applyPeriodFilter() {
+    if (_period == 'all') {
+      _sales = _allSales;
+      return;
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    _sales = _allSales.where((s) {
+      final dateStr = s['sale_date']?.toString() ?? '';
+      final date = DateTime.tryParse(dateStr);
+      if (date == null) return false;
+
+      return switch (_period) {
+        'today' => date.year == today.year && date.month == today.month && date.day == today.day,
+        'week' => date.isAfter(today.subtract(const Duration(days: 7))),
+        'month' => date.year == today.year && date.month == today.month,
+        _ => true,
+      };
+    }).toList();
+  }
+
+  int get _totalRevenue {
+    int total = 0;
+    for (final s in _sales) {
+      if (s['void'] == true || s['void'] == 1) continue;
+      final price = s['price'];
+      final discount = s['discount'] ?? 0;
+      total += ((price is num ? price : int.tryParse(price?.toString() ?? '0') ?? 0) -
+                (discount is num ? discount : int.tryParse(discount?.toString() ?? '0') ?? 0)).toInt();
+    }
+    return total;
   }
 
   @override
@@ -64,44 +102,100 @@ class _SalesScreenState extends State<SalesScreen> {
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _sales.isEmpty
-              ? const Center(child: Text('Aucune vente'))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(8),
-                  itemCount: _sales.length,
-                  itemBuilder: (ctx, i) {
-                    final s = _sales[i];
-                    final isVoid = s['void'] == true || s['void'] == 1;
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 4),
-                      child: ListTile(
-                        leading: Icon(Icons.receipt,
-                            color: isVoid ? Colors.grey : AppTheme.success,
-                            size: 22),
-                        title: Text(s['username'] ?? s['profile_name'] ?? '',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                                decoration: isVoid
-                                    ? TextDecoration.lineThrough
-                                    : null)),
-                        subtitle: Text(
-                            '${s['profile_name'] ?? '-'}  ${s['sale_date'] ?? ''}',
-                            style: const TextStyle(fontSize: 12)),
-                        trailing: Text(
-                          Fmt.currency(s['price'] ?? 0),
-                          style: TextStyle(
-                              color: isVoid ? Colors.grey : AppTheme.success,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13),
-                        ),
-                        dense: true,
+      body: Column(
+        children: [
+          // Period filter
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                for (final f in [
+                  ('today', "Aujourd'hui"),
+                  ('week', '7 jours'),
+                  ('month', 'Ce mois'),
+                  ('all', 'Tout'),
+                ])
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: Text(f.$2),
+                      selected: _period == f.$1,
+                      onSelected: (_) {
+                        setState(() {
+                          _period = f.$1;
+                          _applyPeriodFilter();
+                        });
+                      },
+                      selectedColor: AppTheme.primary.withValues(alpha: 0.2),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // Stats row
+          if (!_loading && _sales.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Text('${_sales.length} ventes',
+                      style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+                  const Spacer(),
+                  Text(Fmt.currency(_totalRevenue),
+                      style: const TextStyle(
+                          color: AppTheme.success,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14)),
+                ],
+              ),
+            ),
+
+          const SizedBox(height: 4),
+
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _sales.isEmpty
+                    ? const Center(child: Text('Aucune vente'))
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(8),
+                        itemCount: _sales.length,
+                        itemBuilder: (ctx, i) {
+                          final s = _sales[i];
+                          final isVoid = s['void'] == true || s['void'] == 1;
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 4),
+                            child: ListTile(
+                              leading: Icon(Icons.receipt,
+                                  color: isVoid ? Colors.grey : AppTheme.success,
+                                  size: 22),
+                              title: Text(s['username'] ?? s['profile_name'] ?? '',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                      decoration: isVoid
+                                          ? TextDecoration.lineThrough
+                                          : null)),
+                              subtitle: Text(
+                                  '${s['profile_name'] ?? '-'}  ${s['sale_date'] ?? ''}',
+                                  style: const TextStyle(fontSize: 12)),
+                              trailing: Text(
+                                Fmt.currency(s['price'] ?? 0),
+                                style: TextStyle(
+                                    color: isVoid ? Colors.grey : AppTheme.success,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13),
+                              ),
+                              dense: true,
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
+          ),
+        ],
+      ),
     );
   }
 }

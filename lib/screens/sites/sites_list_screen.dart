@@ -6,12 +6,25 @@ import '../../providers/site_provider.dart';
 import '../../utils/constants.dart';
 import 'site_detail_screen.dart';
 
-class SitesListScreen extends StatelessWidget {
+class SitesListScreen extends StatefulWidget {
   const SitesListScreen({super.key});
+
+  @override
+  State<SitesListScreen> createState() => _SitesListScreenState();
+}
+
+class _SitesListScreenState extends State<SitesListScreen> {
+  String? _statusFilter;
+
+  List<Site> _filtered(List<Site> sites) {
+    if (_statusFilter == null) return sites;
+    return sites.where((s) => s.status == _statusFilter).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
     final siteProvider = context.watch<SiteProvider>();
+    final sites = _filtered(siteProvider.sites);
 
     return Scaffold(
       appBar: AppBar(
@@ -25,16 +38,47 @@ class SitesListScreen extends StatelessWidget {
       ),
       body: RefreshIndicator(
         onRefresh: () => siteProvider.fetchSites(),
-        child: siteProvider.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : siteProvider.sites.isEmpty
-                ? const Center(child: Text('Aucun site'))
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: siteProvider.sites.length,
-                    itemBuilder: (ctx, i) =>
-                        _SiteCard(site: siteProvider.sites[i]),
-                  ),
+        child: Column(
+          children: [
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  for (final f in [
+                    (null, 'Tous'),
+                    ('configure', 'Configurés'),
+                    ('nouveau', 'Nouveaux'),
+                    ('maintenance', 'Maintenance'),
+                  ])
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        label: Text(f.$2),
+                        selected: _statusFilter == f.$1,
+                        onSelected: (_) =>
+                            setState(() => _statusFilter = f.$1),
+                        selectedColor:
+                            AppTheme.primary.withValues(alpha: 0.2),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: siteProvider.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : sites.isEmpty
+                      ? const Center(child: Text('Aucun site'))
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: sites.length,
+                          itemBuilder: (ctx, i) =>
+                              _SiteCard(site: sites[i]),
+                        ),
+            ),
+          ],
+        ),
       ),
     );
   }

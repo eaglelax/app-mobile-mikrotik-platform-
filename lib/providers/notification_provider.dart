@@ -36,8 +36,10 @@ class NotificationProvider with ChangeNotifier {
 
     try {
       final data = await _service.fetchAll();
-      final list = data['notifications'] as List? ?? [];
-      _notifications = list.map((n) => AppNotification.fromJson(n)).toList();
+      final innerData = data['data'];
+      final list = innerData is Map ? (innerData['items'] as List? ?? [])
+                                    : (data['notifications'] as List? ?? []);
+      _notifications = list.map((n) => AppNotification.fromJson(n as Map<String, dynamic>)).toList();
       _unreadCount = _notifications.where((n) => !n.isRead).length;
     } catch (_) {}
 
