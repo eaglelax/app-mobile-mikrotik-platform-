@@ -22,7 +22,7 @@ class SiteProvider with ChangeNotifier {
   void updateAuth(AuthProvider auth) {
     _auth = auth;
     if (auth.isAuthenticated && _sites.isEmpty) {
-      fetchSites();
+      Future.microtask(() => fetchSites());
     }
   }
 

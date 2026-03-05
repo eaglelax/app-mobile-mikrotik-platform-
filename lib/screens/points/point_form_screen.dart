@@ -95,7 +95,7 @@ class _PointFormScreenState extends State<PointFormScreen> {
               ),
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
-                value: _type,
+                initialValue: _type,
                 decoration: const InputDecoration(labelText: 'Type'),
                 items: const [
                   DropdownMenuItem(value: 'vendeur', child: Text('Vendeur')),
@@ -127,7 +127,7 @@ class _PointFormScreenState extends State<PointFormScreen> {
                 title: const Text('Actif'),
                 value: _isActive,
                 onChanged: (v) => setState(() => _isActive = v),
-                activeColor: AppTheme.success,
+                activeThumbColor: AppTheme.success,
               ),
               const SizedBox(height: 20),
               ElevatedButton(

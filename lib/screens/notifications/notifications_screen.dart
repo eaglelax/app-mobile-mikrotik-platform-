@@ -67,7 +67,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 6),
-                        color: n.isRead ? null : AppTheme.darkSurface,
+                        color: n.isRead ? null : AppTheme.lightSurface,
                         child: ListTile(
                           leading: Icon(severityIcon,
                               color: severityColor, size: 22),

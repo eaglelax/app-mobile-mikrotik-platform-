@@ -34,7 +34,7 @@ class MikroTikApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.dark,
+        themeMode: ThemeMode.light,
         home: Consumer<AuthProvider>(
           builder: (ctx, auth, _) {
             if (auth.isLoading) {

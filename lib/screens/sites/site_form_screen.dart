@@ -142,7 +142,7 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
               ),
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
-                value: _typeActivite,
+                initialValue: _typeActivite,
                 decoration: const InputDecoration(labelText: "Type d'activité"),
                 items: AppConstants.siteActivities.entries
                     .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
@@ -151,7 +151,7 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
               ),
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
-                value: _currency,
+                initialValue: _currency,
                 decoration: const InputDecoration(labelText: 'Devise'),
                 items: const [
                   DropdownMenuItem(value: 'XOF', child: Text('XOF (FCFA)')),

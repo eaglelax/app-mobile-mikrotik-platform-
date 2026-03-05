@@ -112,7 +112,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
               ),
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
-                value: _role,
+                initialValue: _role,
                 decoration: const InputDecoration(labelText: 'Rôle'),
                 items: const [
                   DropdownMenuItem(value: 'user', child: Text('Utilisateur')),
@@ -125,7 +125,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
                 title: const Text('Compte actif'),
                 value: _isActive,
                 onChanged: (v) => setState(() => _isActive = v),
-                activeColor: AppTheme.success,
+                activeThumbColor: AppTheme.success,
               ),
               const SizedBox(height: 20),
               ElevatedButton(

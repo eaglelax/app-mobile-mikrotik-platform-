@@ -232,14 +232,14 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: const BoxDecoration(
-                    color: Color(0xFF23272B),
+                    color: AppTheme.primary,
                     borderRadius:
                         BorderRadius.vertical(top: Radius.circular(14)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.wifi, color: AppTheme.info, size: 20),
+                      const Icon(Icons.wifi, color: Colors.white70, size: 20),
                       const SizedBox(width: 8),
                       Text(widget.site.nom,
                           style: const TextStyle(
@@ -354,7 +354,7 @@ class _CredRow extends StatelessWidget {
           const Spacer(),
           Text(value,
               style: const TextStyle(
-                  color: Color(0xFF1A1D21),
+                  color: Colors.black87,
                   fontWeight: FontWeight.w800,
                   fontSize: 18,
                   letterSpacing: 2,

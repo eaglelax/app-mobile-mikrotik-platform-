@@ -18,7 +18,7 @@ class NotificationProvider with ChangeNotifier {
   void updateAuth(AuthProvider auth) {
     _auth = auth;
     if (auth.isAuthenticated) {
-      refreshUnreadCount();
+      Future.microtask(() => refreshUnreadCount());
     }
   }
 

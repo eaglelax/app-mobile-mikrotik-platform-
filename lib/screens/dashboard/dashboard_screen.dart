@@ -70,7 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             const Text('Dashboard'),
             Text('Bonjour, ${auth.user?.name ?? ''}',
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
           ],
         ),
         actions: [

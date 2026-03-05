@@ -102,7 +102,7 @@ class _AutomatisationScreenState extends State<AutomatisationScreen> {
                           trailing: Switch(
                             value: enabled,
                             onChanged: (v) => _toggleConfig(c, v),
-                            activeColor: AppTheme.success,
+                            activeThumbColor: AppTheme.success,
                           ),
                           isThreeLine: true,
                         ),

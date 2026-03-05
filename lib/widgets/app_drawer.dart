@@ -26,7 +26,7 @@ class AppDrawer extends StatelessWidget {
       child: Column(
         children: [
           DrawerHeader(
-            decoration: const BoxDecoration(color: AppTheme.darkCard),
+            decoration: const BoxDecoration(color: AppTheme.primary),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
@@ -45,10 +45,10 @@ class AppDrawer extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(user?.name ?? '',
                     style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 16)),
+                        fontWeight: FontWeight.w700, fontSize: 16, color: Colors.white)),
                 Text(user?.email ?? '',
-                    style: TextStyle(
-                        fontSize: 13, color: Colors.grey.shade400)),
+                    style: const TextStyle(
+                        fontSize: 13, color: Colors.white70)),
                 if (user?.isAdmin == true)
                   Container(
                     margin: const EdgeInsets.only(top: 4),

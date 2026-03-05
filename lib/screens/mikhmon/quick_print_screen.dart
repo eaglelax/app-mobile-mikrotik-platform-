@@ -81,7 +81,7 @@ class _QuickPrintScreenState extends State<QuickPrintScreen> {
                       style: TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: _selectedProfile,
+                    initialValue: _selectedProfile,
                     decoration:
                         const InputDecoration(hintText: 'Choisir un profil'),
                     items: _profiles

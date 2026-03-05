@@ -103,7 +103,7 @@ class _UserFeaturesScreenState extends State<UserFeaturesScreen> {
       title: Text(label),
       value: _features[key] == true || _features[key] == 1,
       onChanged: (v) => setState(() => _features[key] = v),
-      activeColor: AppTheme.success,
+      activeThumbColor: AppTheme.success,
     );
   }
 

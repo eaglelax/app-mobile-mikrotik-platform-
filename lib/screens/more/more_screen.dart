@@ -31,7 +31,7 @@ class MoreScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppTheme.darkCard,
+              color: AppTheme.lightCard,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
@@ -57,7 +57,7 @@ class MoreScreen extends StatelessWidget {
                               fontWeight: FontWeight.w700, fontSize: 16)),
                       Text(user?.email ?? '',
                           style: TextStyle(
-                              fontSize: 13, color: Colors.grey.shade400)),
+                              fontSize: 13, color: Colors.grey.shade600)),
                     ],
                   ),
                 ),
@@ -224,7 +224,7 @@ class _MenuTile extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.darkCard,
+          color: AppTheme.lightCard,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
