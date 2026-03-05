@@ -24,12 +24,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       final api = ApiClient();
-      final result = await api.postForm('/register.php', {
+      final result = await api.postForm('/api/auth/register.php', {
         'name': _nameCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
         'password': _passCtrl.text,
         'password_confirm': _passConfirmCtrl.text,
-        'action': 'register',
       });
 
       if (mounted) {

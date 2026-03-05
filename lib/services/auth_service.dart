@@ -7,10 +7,9 @@ class AuthService {
   final _api = ApiClient();
 
   Future<User> login(String email, String password) async {
-    final data = await _api.postForm('/login.php', {
+    final data = await _api.postForm('/api/auth/login.php', {
       'email': email,
       'password': password,
-      'action': 'login',
     });
 
     if (data['success'] == true && data['user'] != null) {
