@@ -14,6 +14,9 @@ class AuthService {
 
     if (data['success'] == true && data['user'] != null) {
       final user = User.fromJson(data['user']);
+      if (data['token'] != null) {
+        _api.setToken(data['token']);
+      }
       if (data['csrf_token'] != null) {
         _api.setCsrfToken(data['csrf_token']);
       }

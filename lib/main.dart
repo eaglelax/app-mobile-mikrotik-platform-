@@ -5,7 +5,6 @@ import 'providers/auth_provider.dart';
 import 'providers/site_provider.dart';
 import 'providers/notification_provider.dart';
 import 'screens/auth/login_screen.dart';
-import 'screens/dashboard/dashboard_screen.dart';
 import 'widgets/app_shell.dart';
 
 void main() {

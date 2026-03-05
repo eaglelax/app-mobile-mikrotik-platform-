@@ -18,7 +18,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final _kpiService = KpiService();
   Map<String, dynamic>? _revenue;
   Map<String, dynamic>? _activation;
-  Map<String, dynamic>? _stockCoverage;
   Map<String, dynamic>? _topSites;
   bool _loading = true;
 
@@ -34,15 +33,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final results = await Future.wait([
         _kpiService.fetchRevenue(),
         _kpiService.fetchActivationRate(),
-        _kpiService.fetchStockCoverage(),
         _kpiService.fetchTopSites(),
       ]);
       if (mounted) {
         setState(() {
           _revenue = results[0];
           _activation = results[1];
-          _stockCoverage = results[2];
-          _topSites = results[3];
+          _topSites = results[2];
           _loading = false;
         });
       }
@@ -55,6 +52,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final sites = context.watch<SiteProvider>();
+
+    // Revenue: API returns {total, count, variation_pct, ...}
+    final todayRevenue = _revenue?['total'] ?? 0;
+    final revenueChange = _revenue?['variation_pct'];
+
+    // Activation: API returns {activation_rate, total_sold, total_activated}
+    final activationRate = _activation?['activation_rate'] ?? 0;
+
+    // Top sites: API returns {items: [...]} (list of sites)
+    final topSitesList = _topSites?['items'] as List? ?? [];
 
     return Scaffold(
       appBar: AppBar(
@@ -97,31 +104,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       StatCard(
                         title: 'Revenu Aujourd\'hui',
-                        value: Fmt.currency(
-                            _revenue?['today_revenue'] ?? 0, 'FCFA'),
+                        value: Fmt.currency(todayRevenue, 'FCFA'),
                         icon: Icons.payments_outlined,
                         color: AppTheme.success,
-                        subtitle: _revenue?['change'] != null
-                            ? '${_revenue!['change']}% vs hier'
+                        subtitle: revenueChange != null
+                            ? '${revenueChange}% vs hier'
                             : null,
                       ),
                       StatCard(
                         title: 'Taux Activation',
-                        value: Fmt.percent(
-                            _activation?['activation_rate'] ?? 0),
+                        value: Fmt.percent(activationRate),
                         icon: Icons.trending_up,
                         color: AppTheme.primary,
                       ),
                       StatCard(
-                        title: 'Couverture Stock',
-                        value:
-                            '${_stockCoverage?['coverage_days'] ?? 0} jours',
+                        title: 'Ventes ce mois',
+                        value: '${_revenue?['count'] ?? 0}',
                         icon: Icons.inventory_2_outlined,
                         color: AppTheme.warning,
                       ),
                       StatCard(
                         title: 'Sites Actifs',
-                        value: '${sites.configuredSites.length}',
+                        value: '${sites.sites.length}',
                         icon: Icons.router_outlined,
                         color: AppTheme.info,
                       ),
@@ -131,83 +135,89 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 20),
 
                   // Top sites
-                  if (_topSites?['sites'] != null) ...[
+                  if (topSitesList.isNotEmpty) ...[
                     const Text('Meilleurs Sites',
                         style: TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 10),
-                    ...(_topSites!['sites'] as List).take(5).map((s) => Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  AppTheme.primary.withValues(alpha: 0.15),
-                              child: Text(
-                                '${(s['rank'] ?? 0)}',
-                                style: const TextStyle(
-                                    color: AppTheme.primary,
-                                    fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            title: Text(s['name'] ?? '',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600)),
-                            subtitle: Text(
-                                '${s['sold'] ?? 0} ventes',
-                                style: TextStyle(
-                                    color: Colors.grey.shade500,
-                                    fontSize: 13)),
-                            trailing: Text(
-                              Fmt.currency(s['revenue'] ?? 0),
+                    ...topSitesList.take(5).indexed.map((entry) {
+                      final (i, s) = entry;
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor:
+                                AppTheme.primary.withValues(alpha: 0.15),
+                            child: Text(
+                              '${i + 1}',
                               style: const TextStyle(
-                                  color: AppTheme.success,
-                                  fontWeight: FontWeight.w700),
+                                  color: AppTheme.primary,
+                                  fontWeight: FontWeight.bold),
                             ),
                           ),
-                        )),
+                          title: Text(
+                              s['site_name'] ?? s['name'] ?? '',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600)),
+                          subtitle: Text(
+                              '${s['count'] ?? s['sold'] ?? 0} ventes',
+                              style: TextStyle(
+                                  color: Colors.grey.shade500,
+                                  fontSize: 13)),
+                          trailing: Text(
+                            Fmt.currency(num.tryParse('${s['total'] ?? s['revenue'] ?? 0}') ?? 0),
+                            style: const TextStyle(
+                                color: AppTheme.success,
+                                fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      );
+                    }),
                   ],
 
                   const SizedBox(height: 16),
 
                   // Router health overview
-                  const Text('État des Routeurs',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 10),
-                  ...sites.sites.map((site) => Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          leading: Icon(
-                            Icons.circle,
-                            size: 12,
-                            color: site.routerStatus == 'online'
-                                ? AppTheme.success
-                                : site.routerStatus == 'degraded'
-                                    ? AppTheme.warning
-                                    : AppTheme.danger,
+                  if (sites.sites.isNotEmpty) ...[
+                    const Text('Etat des Routeurs',
+                        style:
+                            TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 10),
+                    ...sites.sites.map((site) => Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            leading: Icon(
+                              Icons.circle,
+                              size: 12,
+                              color: site.routerStatus == 'online'
+                                  ? AppTheme.success
+                                  : site.routerStatus == 'degraded'
+                                      ? AppTheme.warning
+                                      : AppTheme.danger,
+                            ),
+                            title: Text(site.nom,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600, fontSize: 14)),
+                            subtitle: Text(site.routerIp,
+                                style: TextStyle(
+                                    color: Colors.grey.shade500, fontSize: 12)),
+                            trailing: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                    '${site.activeUsers ?? 0} actifs',
+                                    style: const TextStyle(fontSize: 13)),
+                                Text(
+                                    '${site.unsoldVouchers ?? 0} stock',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade500)),
+                              ],
+                            ),
                           ),
-                          title: Text(site.nom,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 14)),
-                          subtitle: Text(site.routerIp,
-                              style: TextStyle(
-                                  color: Colors.grey.shade500, fontSize: 12)),
-                          trailing: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                  '${site.activeUsers ?? 0} actifs',
-                                  style: const TextStyle(fontSize: 13)),
-                              Text(
-                                  '${site.unsoldVouchers ?? 0} stock',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade500)),
-                            ],
-                          ),
-                        ),
-                      )),
+                        )),
+                  ],
                 ],
               ),
       ),

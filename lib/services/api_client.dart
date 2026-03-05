@@ -17,36 +17,23 @@ class ApiClient {
   factory ApiClient() => _instance;
   ApiClient._();
 
-  String? _sessionCookie;
+  String? _bearerToken;
   String? _csrfToken;
 
   String get baseUrl => ApiConfig.baseUrl;
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
-    _sessionCookie = prefs.getString('session_cookie');
+    _bearerToken = prefs.getString('bearer_token');
     _csrfToken = prefs.getString('csrf_token');
   }
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
         'X-Requested-With': 'XMLHttpRequest',
-        if (_sessionCookie != null) 'Cookie': _sessionCookie!,
+        if (_bearerToken != null) 'Authorization': 'Bearer $_bearerToken',
         if (_csrfToken != null) 'X-CSRF-Token': _csrfToken!,
       };
-
-  Future<void> _saveCookies(http.Response response) async {
-    final setCookie = response.headers['set-cookie'];
-    if (setCookie != null) {
-      // Extract PHPSESSID
-      final match = RegExp(r'PHPSESSID=([^;]+)').firstMatch(setCookie);
-      if (match != null) {
-        _sessionCookie = 'PHPSESSID=${match.group(1)}';
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('session_cookie', _sessionCookie!);
-      }
-    }
-  }
 
   Future<Map<String, dynamic>> get(String endpoint,
       [Map<String, String>? params]) async {
@@ -59,7 +46,6 @@ class ApiClient {
         .get(uri, headers: _headers)
         .timeout(ApiConfig.timeout);
 
-    await _saveCookies(response);
     return _handleResponse(response);
   }
 
@@ -75,7 +61,6 @@ class ApiClient {
         .post(uri, headers: _headers, body: jsonEncode(payload))
         .timeout(ApiConfig.timeout);
 
-    await _saveCookies(response);
     return _handleResponse(response);
   }
 
@@ -95,13 +80,12 @@ class ApiClient {
             body: fields)
         .timeout(ApiConfig.timeout);
 
-    await _saveCookies(response);
     return _handleResponse(response);
   }
 
   Map<String, dynamic> _handleResponse(http.Response response) {
     if (response.statusCode == 401) {
-      throw ApiException('Session expirée, veuillez vous reconnecter',
+      throw ApiException('Session expiree, veuillez vous reconnecter',
           statusCode: 401);
     }
 
@@ -119,11 +103,17 @@ class ApiClient {
   }
 
   Future<void> clearSession() async {
-    _sessionCookie = null;
+    _bearerToken = null;
     _csrfToken = null;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('session_cookie');
+    await prefs.remove('bearer_token');
     await prefs.remove('csrf_token');
+  }
+
+  void setToken(String token) {
+    _bearerToken = token;
+    SharedPreferences.getInstance()
+        .then((p) => p.setString('bearer_token', token));
   }
 
   void setCsrfToken(String token) {

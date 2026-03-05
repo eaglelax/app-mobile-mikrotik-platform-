@@ -10,6 +10,7 @@ class ApiConfig {
   static const String login = '/api/auth/login.php';
   static const String register = '/api/auth/register.php';
   static const String dashboardStats = '/api/dashboard-stats.php';
+  static const String sitesList = '/api/sites-list.php';
   static const String analyticsSummary = '/api/analytics-summary.php';
   static const String siteStats = '/api/site-stats.php';
   static const String routerTest = '/api/router-test.php';

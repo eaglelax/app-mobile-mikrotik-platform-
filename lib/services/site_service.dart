@@ -5,7 +5,7 @@ class SiteService {
   final _api = ApiClient();
 
   Future<List<Site>> fetchAll() async {
-    final data = await _api.get('/api/dashboard-stats.php');
+    final data = await _api.get('/api/sites-list.php');
     final sites = data['sites'] as List? ?? [];
     return sites.map((s) => Site.fromJson(s)).toList();
   }
