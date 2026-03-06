@@ -17,7 +17,9 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _currentIndex = 0;
 
-  final _pages = const [
+  final _navigatorKeys = List.generate(5, (_) => GlobalKey<NavigatorState>());
+
+  final _pages = const <Widget>[
     DashboardScreen(),
     SitesListScreen(),
     MikhmonHubScreen(),
@@ -29,45 +31,66 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final notifProvider = context.watch<NotificationProvider>();
 
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (i) => setState(() => _currentIndex = i),
-        destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: 'Dashboard',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.router_outlined),
-            selectedIcon: Icon(Icons.router),
-            label: 'Sites',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.wifi_outlined),
-            selectedIcon: Icon(Icons.wifi),
-            label: 'Mikhmon',
-          ),
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: notifProvider.unreadCount > 0,
-              label: Text('${notifProvider.unreadCount}'),
-              child: const Icon(Icons.bar_chart_outlined),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        final nav = _navigatorKeys[_currentIndex].currentState;
+        if (nav != null && nav.canPop()) {
+          nav.maybePop();
+        }
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: _currentIndex,
+          children: List.generate(5, (i) => Navigator(
+            key: _navigatorKeys[i],
+            onGenerateRoute: (_) => MaterialPageRoute(
+              builder: (_) => _pages[i],
             ),
-            selectedIcon: const Icon(Icons.bar_chart),
-            label: 'Rapports',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.grid_view_outlined),
-            selectedIcon: Icon(Icons.grid_view),
-            label: 'Plus',
-          ),
-        ],
+          )),
+        ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: (i) {
+            if (i == _currentIndex) {
+              _navigatorKeys[i].currentState?.popUntil((route) => route.isFirst);
+            } else {
+              setState(() => _currentIndex = i);
+            }
+          },
+          destinations: [
+            const NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard),
+              label: 'Dashboard',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.router_outlined),
+              selectedIcon: Icon(Icons.router),
+              label: 'Sites',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.wifi_outlined),
+              selectedIcon: Icon(Icons.wifi),
+              label: 'Mikhmon',
+            ),
+            NavigationDestination(
+              icon: Badge(
+                isLabelVisible: notifProvider.unreadCount > 0,
+                label: Text('${notifProvider.unreadCount}'),
+                child: const Icon(Icons.bar_chart_outlined),
+              ),
+              selectedIcon: const Icon(Icons.bar_chart),
+              label: 'Rapports',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.grid_view_outlined),
+              selectedIcon: Icon(Icons.grid_view),
+              label: 'Plus',
+            ),
+          ],
+        ),
       ),
     );
   }

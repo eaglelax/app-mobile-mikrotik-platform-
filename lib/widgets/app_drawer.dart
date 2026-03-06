@@ -189,8 +189,8 @@ class AppDrawer extends StatelessWidget {
   }
 
   void _navigate(BuildContext context, Widget screen) {
-    Navigator.pop(context); // Close drawer
-    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+    Scaffold.of(context).closeDrawer();
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
   }
 }
 

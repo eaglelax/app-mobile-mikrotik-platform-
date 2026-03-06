@@ -14,6 +14,7 @@ class _TunnelsScreenState extends State<TunnelsScreen> {
   final _service = TunnelService();
   List<Map<String, dynamic>> _tunnels = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -22,12 +23,20 @@ class _TunnelsScreenState extends State<TunnelsScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() { _loading = true; _error = null; });
     try {
       final data = await _service.fetchAll();
-      _tunnels =
-          (data['peers'] ?? data['tunnels'] as List? ?? []).cast<Map<String, dynamic>>();
-    } catch (_) {}
+      if (data['success'] == false) {
+        _error = data['error']?.toString() ?? 'Erreur inconnue';
+        _tunnels = [];
+      } else {
+        final peers = data['peers'] ?? data['tunnels'];
+        _tunnels = (peers is List ? peers : []).cast<Map<String, dynamic>>();
+      }
+    } catch (e) {
+      _error = e.toString();
+      _tunnels = [];
+    }
     if (mounted) setState(() => _loading = false);
   }
 
@@ -53,7 +62,13 @@ class _TunnelsScreenState extends State<TunnelsScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _tunnels.isEmpty
+          : _error != null
+              ? Center(child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(_error!, textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey.shade500)),
+                ))
+              : _tunnels.isEmpty
               ? const Center(child: Text('Aucun tunnel VPN'))
               : RefreshIndicator(
                   onRefresh: _load,
