@@ -16,9 +16,10 @@ class NotificationProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
 
   void updateAuth(AuthProvider auth) {
+    final wasAuth = _auth?.isAuthenticated ?? false;
     _auth = auth;
-    if (auth.isAuthenticated) {
-      Future.microtask(() => refreshUnreadCount());
+    if (auth.isAuthenticated && !wasAuth) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => refreshUnreadCount());
     }
   }
 

@@ -88,7 +88,7 @@ class _MikhmonDashboardScreenState extends State<MikhmonDashboardScreen> {
                     physics: const NeverScrollableScrollPhysics(),
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
-                    childAspectRatio: 1.4,
+                    childAspectRatio: 1.15,
                     children: [
                       StatCard(
                         title: 'Utilisateurs Actifs',

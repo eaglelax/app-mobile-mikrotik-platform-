@@ -53,7 +53,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
     try {
       await _api.post('/api/users-bulk.php', {
         'action': 'delete',
-        'user_id': user['id'],
+        'ids': [user['id']],
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

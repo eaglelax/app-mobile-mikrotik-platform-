@@ -177,7 +177,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                     physics: const NeverScrollableScrollPhysics(),
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
-                    childAspectRatio: 1.4,
+                    childAspectRatio: 1.15,
                     children: [
                       StatCard(
                         title: 'Revenu Aujourd\'hui',

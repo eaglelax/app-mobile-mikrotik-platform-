@@ -48,7 +48,12 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
       );
     }
 
-    return Scaffold(
+    return PopScope(
+      canPop: widget.site != null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() { _site = null; _batches = []; });
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,6 +106,7 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
                     },
                   ),
                 ),
+    ),
     );
   }
 

@@ -71,7 +71,12 @@ class _VouchersScreenState extends State<VouchersScreen> {
       );
     }
 
-    return Scaffold(
+    return PopScope(
+      canPop: widget.site != null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() { _site = null; _vouchers = []; _filtered = []; });
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,6 +207,7 @@ class _VouchersScreenState extends State<VouchersScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }

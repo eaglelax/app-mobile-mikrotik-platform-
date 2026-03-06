@@ -91,7 +91,12 @@ class _ProfilesListScreenState extends State<ProfilesListScreen> {
       );
     }
 
-    return Scaffold(
+    return PopScope(
+      canPop: widget.site != null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() { _site = null; _profiles = []; });
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,6 +186,7 @@ class _ProfilesListScreenState extends State<ProfilesListScreen> {
                     },
                   ),
                 ),
+    ),
     );
   }
 }

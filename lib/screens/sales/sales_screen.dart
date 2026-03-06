@@ -64,14 +64,13 @@ class _SalesScreenState extends State<SalesScreen> {
     }).toList();
   }
 
+  num _toNum(dynamic v) => v is num ? v : num.tryParse(v?.toString() ?? '') ?? 0;
+
   int get _totalRevenue {
     int total = 0;
     for (final s in _sales) {
-      if (s['void'] == true || s['void'] == 1) continue;
-      final price = s['price'];
-      final discount = s['discount'] ?? 0;
-      total += ((price is num ? price : int.tryParse(price?.toString() ?? '0') ?? 0) -
-                (discount is num ? discount : int.tryParse(discount?.toString() ?? '0') ?? 0)).toInt();
+      if (s['void'] == true || s['void'] == 1 || s['void'] == 't') continue;
+      total += (_toNum(s['price']) - _toNum(s['discount'])).toInt();
     }
     return total;
   }
@@ -88,7 +87,12 @@ class _SalesScreenState extends State<SalesScreen> {
       );
     }
 
-    return Scaffold(
+    return PopScope(
+      canPop: widget.site != null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() { _site = null; _allSales = []; _sales = []; });
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,7 +168,7 @@ class _SalesScreenState extends State<SalesScreen> {
                         itemCount: _sales.length,
                         itemBuilder: (ctx, i) {
                           final s = _sales[i];
-                          final isVoid = s['void'] == true || s['void'] == 1;
+                          final isVoid = s['void'] == true || s['void'] == 1 || s['void'] == 't';
                           return Card(
                             margin: const EdgeInsets.only(bottom: 4),
                             child: ListTile(
@@ -182,7 +186,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                   '${s['profile_name'] ?? '-'}  ${s['sale_date'] ?? ''}',
                                   style: const TextStyle(fontSize: 12)),
                               trailing: Text(
-                                Fmt.currency(s['price'] ?? 0),
+                                Fmt.currency(_toNum(s['price'])),
                                 style: TextStyle(
                                     color: isVoid ? Colors.grey : AppTheme.success,
                                     fontWeight: FontWeight.w700,
@@ -196,6 +200,7 @@ class _SalesScreenState extends State<SalesScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }

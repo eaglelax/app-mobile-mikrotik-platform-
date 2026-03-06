@@ -36,7 +36,7 @@ class ApiClient {
       };
 
   Future<Map<String, dynamic>> get(String endpoint,
-      [Map<String, String>? params]) async {
+      [Map<String, String>? params, Duration? timeout]) async {
     var uri = Uri.parse('${ApiConfig.baseUrl}$endpoint');
     if (params != null) {
       uri = uri.replace(queryParameters: {...uri.queryParameters, ...params});
@@ -44,7 +44,7 @@ class ApiClient {
 
     final response = await http
         .get(uri, headers: _headers)
-        .timeout(ApiConfig.timeout);
+        .timeout(timeout ?? ApiConfig.timeout);
 
     return _handleResponse(response);
   }

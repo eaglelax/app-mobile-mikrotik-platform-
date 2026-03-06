@@ -107,11 +107,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text('Pas encore de compte ?',
-                          style: TextStyle(color: Colors.grey.shade500)),
+                          style: TextStyle(color: Colors.grey.shade600)),
                       TextButton(
                         onPressed: () => Navigator.push(
                           context,

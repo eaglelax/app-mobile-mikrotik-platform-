@@ -20,9 +20,10 @@ class SiteProvider with ChangeNotifier {
   String? get error => _error;
 
   void updateAuth(AuthProvider auth) {
+    final wasAuth = _auth?.isAuthenticated ?? false;
     _auth = auth;
-    if (auth.isAuthenticated && _sites.isEmpty) {
-      Future.microtask(() => fetchSites());
+    if (auth.isAuthenticated && !wasAuth && _sites.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => fetchSites());
     }
   }
 

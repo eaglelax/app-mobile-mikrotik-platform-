@@ -4,7 +4,8 @@ class ApiConfig {
   // For local development:
   // static const String baseUrl = 'http://192.168.1.100:8888';
 
-  static const Duration timeout = Duration(seconds: 30);
+  static const Duration timeout = Duration(seconds: 60);
+  static const Duration longTimeout = Duration(seconds: 90);
 
   // API endpoints
   static const String login = '/api/auth/login.php';
@@ -34,6 +35,9 @@ class ApiConfig {
   static const String autoGenBatches = '/api/auto-generate-batches.php';
   static const String autoGenStatus = '/api/auto-generate-status.php';
   static const String usersBulk = '/api/users-bulk.php';
+
+  // Flash sale
+  static const String flashSale = '/api/flash-sale.php';
 
   // KPI endpoints
   static const String kpiRevenue = '/api/kpi/revenue.php';

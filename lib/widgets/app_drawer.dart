@@ -17,6 +17,7 @@ import '../screens/mikhmon/vouchers_screen.dart';
 import '../screens/scripts/scripts_screen.dart';
 import '../screens/tickets/ticket_batches_screen.dart';
 import '../screens/reports/reports_screen.dart';
+import '../screens/flash_sale/flash_sale_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -94,6 +95,11 @@ class AppDrawer extends StatelessWidget {
                   icon: Icons.receipt_long_outlined,
                   label: 'Ventes',
                   onTap: () => _navigate(context, const SalesScreen()),
+                ),
+                _DrawerItem(
+                  icon: Icons.flash_on,
+                  label: 'Vente Flash',
+                  onTap: () => _navigate(context, const FlashSaleScreen()),
                 ),
                 _DrawerItem(
                   icon: Icons.notifications_outlined,

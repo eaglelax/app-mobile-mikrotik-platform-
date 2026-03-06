@@ -1,3 +1,4 @@
+import '../config/api_config.dart';
 import '../models/site.dart';
 import 'api_client.dart';
 
@@ -5,7 +6,7 @@ class SiteService {
   final _api = ApiClient();
 
   Future<List<Site>> fetchAll() async {
-    final data = await _api.get('/api/sites-list.php');
+    final data = await _api.get('/api/sites-list.php', null, ApiConfig.longTimeout);
     final sites = data['sites'] as List? ?? [];
     return sites.map((s) => Site.fromJson(s)).toList();
   }

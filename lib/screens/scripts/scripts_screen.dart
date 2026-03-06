@@ -53,7 +53,12 @@ class _ScriptsScreenState extends State<ScriptsScreen> {
       );
     }
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _site = null);
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,6 +126,7 @@ class _ScriptsScreenState extends State<ScriptsScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

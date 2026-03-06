@@ -10,6 +10,7 @@ import '../mikhmon/vouchers_screen.dart';
 import '../scripts/scripts_screen.dart';
 import '../tickets/ticket_batches_screen.dart';
 import '../reports/reports_screen.dart';
+import '../flash_sale/flash_sale_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../points/points_list_screen.dart';
 import '../profiles/profiles_list_screen.dart';
@@ -117,6 +118,12 @@ class MoreScreen extends StatelessWidget {
                 label: 'Ventes',
                 color: AppTheme.success,
                 onTap: () => _navigate(context, const SalesScreen()),
+              ),
+              _MenuTile(
+                icon: Icons.flash_on,
+                label: 'Vente Flash',
+                color: Colors.deepOrange,
+                onTap: () => _navigate(context, const FlashSaleScreen()),
               ),
               _MenuTile(
                 icon: Icons.notifications_outlined,

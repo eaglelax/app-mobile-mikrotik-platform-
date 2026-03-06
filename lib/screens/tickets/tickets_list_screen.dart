@@ -101,7 +101,12 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
       );
     }
 
-    return Scaffold(
+    return PopScope(
+      canPop: widget.site != null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() { _site = null; _allTickets = []; _tickets = []; });
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -232,6 +237,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }

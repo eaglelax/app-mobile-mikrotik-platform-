@@ -49,7 +49,12 @@ class _PointsListScreenState extends State<PointsListScreen> {
       );
     }
 
-    return Scaffold(
+    return PopScope(
+      canPop: widget.site != null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() { _site = null; _points = []; });
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,6 +139,7 @@ class _PointsListScreenState extends State<PointsListScreen> {
                     },
                   ),
                 ),
+    ),
     );
   }
 }

@@ -27,10 +27,9 @@ class StatCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
                 padding: const EdgeInsets.all(6),
@@ -40,21 +39,22 @@ class StatCard extends StatelessWidget {
                 ),
                 child: Icon(icon, color: c, size: 18),
               ),
+              const Spacer(),
               Text(value,
                   style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.w800),
+                      fontSize: 18, fontWeight: FontWeight.w800),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis),
               const SizedBox(height: 2),
               Text(title,
                   style: TextStyle(
-                      fontSize: 12, color: Colors.grey.shade600),
+                      fontSize: 11, color: Colors.grey.shade600),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis),
               if (subtitle != null)
                 Text(subtitle!,
                     style: TextStyle(
-                        fontSize: 11, color: c, fontWeight: FontWeight.w600),
+                        fontSize: 10, color: c, fontWeight: FontWeight.w600),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
             ],

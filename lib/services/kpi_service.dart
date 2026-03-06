@@ -14,30 +14,42 @@ class KpiService {
   }
 
   Future<Map<String, dynamic>> fetchRevenue(
-      {String period = 'today', List<int>? siteIds}) async {
+      {String period = 'day',
+      String? dateFrom,
+      String? dateTo,
+      List<int>? siteIds}) async {
     final params = <String, String>{'period': period};
+    if (dateFrom != null) params['date_from'] = dateFrom;
+    if (dateTo != null) params['date_to'] = dateTo;
     if (siteIds != null) params['site_ids'] = siteIds.join(',');
-    return _unwrap(await _api.get(ApiConfig.kpiRevenue, params));
+    return _unwrap(await _api.get(ApiConfig.kpiRevenue, params, ApiConfig.longTimeout));
   }
 
   Future<Map<String, dynamic>> fetchActivationRate(
-      {List<int>? siteIds}) async {
+      {List<int>? siteIds, bool fast = true}) async {
     final params = <String, String>{};
     if (siteIds != null) params['site_ids'] = siteIds.join(',');
-    return _unwrap(await _api.get(ApiConfig.kpiActivation, params));
+    if (fast) params['fast'] = '1';
+    final timeout = fast ? ApiConfig.timeout : ApiConfig.longTimeout;
+    return _unwrap(await _api.get(ApiConfig.kpiActivation, params, timeout));
   }
 
   Future<Map<String, dynamic>> fetchStockCoverage(
-      {List<int>? siteIds}) async {
+      {List<int>? siteIds, bool fast = true}) async {
     final params = <String, String>{};
     if (siteIds != null) params['site_ids'] = siteIds.join(',');
-    return _unwrap(await _api.get(ApiConfig.kpiStockCoverage, params));
+    if (fast) params['fast'] = '1';
+    final timeout = fast ? ApiConfig.timeout : ApiConfig.longTimeout;
+    return _unwrap(await _api.get(ApiConfig.kpiStockCoverage, params, timeout));
   }
 
-  Future<Map<String, dynamic>> fetchStockouts({List<int>? siteIds}) async {
+  Future<Map<String, dynamic>> fetchStockouts(
+      {List<int>? siteIds, bool fast = true}) async {
     final params = <String, String>{};
     if (siteIds != null) params['site_ids'] = siteIds.join(',');
-    return _unwrap(await _api.get(ApiConfig.kpiStockouts, params));
+    if (fast) params['fast'] = '1';
+    final timeout = fast ? ApiConfig.timeout : ApiConfig.longTimeout;
+    return _unwrap(await _api.get(ApiConfig.kpiStockouts, params, timeout));
   }
 
   Future<Map<String, dynamic>> fetchSalesMix({List<int>? siteIds}) async {
