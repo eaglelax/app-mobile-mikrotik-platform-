@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../services/api_client.dart';
 import 'user_form_screen.dart';
+import 'user_features_screen.dart';
 
 class UsersListScreen extends StatefulWidget {
   const UsersListScreen({super.key});
@@ -147,6 +148,9 @@ class _UsersListScreenState extends State<UsersListScreen> {
                               const PopupMenuItem(
                                   value: 'edit', child: Text('Modifier')),
                               const PopupMenuItem(
+                                  value: 'features',
+                                  child: Text('Permissions')),
+                              const PopupMenuItem(
                                   value: 'delete',
                                   child: Text('Supprimer',
                                       style:
@@ -162,6 +166,13 @@ class _UsersListScreenState extends State<UsersListScreen> {
                                 ).then((ok) {
                                   if (ok == true) _load();
                                 });
+                              } else if (action == 'features') {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) =>
+                                          UserFeaturesScreen(user: u)),
+                                );
                               } else if (action == 'delete') {
                                 _deleteUser(u);
                               }

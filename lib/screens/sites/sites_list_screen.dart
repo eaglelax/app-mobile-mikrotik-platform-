@@ -5,6 +5,7 @@ import '../../models/site.dart';
 import '../../providers/site_provider.dart';
 import '../../utils/constants.dart';
 import 'site_detail_screen.dart';
+import 'site_form_screen.dart';
 
 class SitesListScreen extends StatefulWidget {
   const SitesListScreen({super.key});
@@ -35,6 +36,17 @@ class _SitesListScreenState extends State<SitesListScreen> {
             onPressed: () => siteProvider.fetchSites(),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final created = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(builder: (_) => const SiteFormScreen()),
+          );
+          if (created == true) siteProvider.fetchSites();
+        },
+        backgroundColor: AppTheme.primary,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
       body: RefreshIndicator(
         onRefresh: () => siteProvider.fetchSites(),

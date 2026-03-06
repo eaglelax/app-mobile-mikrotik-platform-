@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../services/api_client.dart';
+import 'discovery_configure_screen.dart';
 
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({super.key});
@@ -146,6 +147,27 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                       if (_result!['response_time'] != null)
                         Text('Temps de réponse: ${_result!['response_time']}ms',
                             style: const TextStyle(fontSize: 13)),
+                      if (_result!['success'] == true) ...[
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => DiscoveryConfigureScreen(
+                                routerInfo: {
+                                  'router_ip': _ipCtrl.text.trim(),
+                                  'router_user': _userCtrl.text.trim(),
+                                  'router_password': _passCtrl.text,
+                                  'router_port': int.tryParse(_portCtrl.text) ?? 8728,
+                                  ..._result!,
+                                },
+                              ),
+                            ),
+                          ),
+                          icon: const Icon(Icons.settings),
+                          label: const Text('Diagnostiquer'),
+                        ),
+                      ],
                     ],
                   ),
                 ),

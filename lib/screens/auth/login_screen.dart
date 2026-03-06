@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -104,6 +105,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                   strokeWidth: 2, color: Colors.white))
                           : const Text('Se connecter'),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('Pas encore de compte ?',
+                          style: TextStyle(color: Colors.grey.shade500)),
+                      TextButton(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const RegisterScreen()),
+                        ),
+                        child: const Text("S'inscrire"),
+                      ),
+                    ],
                   ),
                 ],
               ),

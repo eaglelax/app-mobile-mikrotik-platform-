@@ -16,6 +16,7 @@ import '../screens/kpi/kpi_dashboard_screen.dart';
 import '../screens/mikhmon/vouchers_screen.dart';
 import '../screens/scripts/scripts_screen.dart';
 import '../screens/tickets/ticket_batches_screen.dart';
+import '../screens/reports/reports_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -120,6 +121,11 @@ class AppDrawer extends StatelessWidget {
                   icon: Icons.inventory_2_outlined,
                   label: 'Lots de Tickets',
                   onTap: () => _navigate(context, const TicketBatchesScreen()),
+                ),
+                _DrawerItem(
+                  icon: Icons.assessment_outlined,
+                  label: 'Rapports',
+                  onTap: () => _navigate(context, const ReportsScreen()),
                 ),
                 const Divider(),
                 if (auth.isAdmin) ...[

@@ -9,6 +9,7 @@ import '../kpi/kpi_dashboard_screen.dart';
 import '../mikhmon/vouchers_screen.dart';
 import '../scripts/scripts_screen.dart';
 import '../tickets/ticket_batches_screen.dart';
+import '../reports/reports_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../points/points_list_screen.dart';
 import '../profiles/profiles_list_screen.dart';
@@ -147,6 +148,12 @@ class MoreScreen extends StatelessWidget {
                 label: 'Lots Tickets',
                 color: Colors.indigo,
                 onTap: () => _navigate(context, const TicketBatchesScreen()),
+              ),
+              _MenuTile(
+                icon: Icons.assessment_outlined,
+                label: 'Rapports',
+                color: Colors.brown,
+                onTap: () => _navigate(context, const ReportsScreen()),
               ),
             ],
           ),

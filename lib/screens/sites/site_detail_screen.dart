@@ -6,6 +6,7 @@ import '../../services/api_client.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/stat_card.dart';
 import '../mikhmon/mikhmon_dashboard_screen.dart';
+import '../reports/site_report_screen.dart';
 
 class SiteDetailScreen extends StatefulWidget {
   final Site site;
@@ -224,6 +225,15 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                     icon: Icons.sync,
                     label: 'Synchroniser les ventes',
                     onTap: _syncSales,
+                  ),
+                  _ActionButton(
+                    icon: Icons.assessment,
+                    label: 'Rapport du site',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => SiteReportScreen(site: site)),
+                    ),
                   ),
                   _ActionButton(
                     icon: Icons.wifi,

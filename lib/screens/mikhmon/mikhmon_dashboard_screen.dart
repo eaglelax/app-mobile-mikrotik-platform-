@@ -16,6 +16,7 @@ import 'system_controls_screen.dart';
 import 'logs_screen.dart';
 import 'hotspot_cookies_screen.dart';
 import 'ip_bindings_screen.dart';
+import 'mikhmon_report_screen.dart';
 
 class MikhmonDashboardScreen extends StatefulWidget {
   final Site site;
@@ -193,6 +194,12 @@ class _MikhmonDashboardScreenState extends State<MikhmonDashboardScreen> {
                     icon: Icons.article_outlined,
                     label: 'Logs',
                     onTap: () => _push(LogsScreen(site: site)),
+                  ),
+
+                  _MenuItem(
+                    icon: Icons.assessment_outlined,
+                    label: 'Rapport Mikhmon',
+                    onTap: () => _push(MikhmonReportScreen(site: site)),
                   ),
 
                   const SizedBox(height: 16),
