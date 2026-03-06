@@ -29,10 +29,11 @@ class TicketService {
     });
   }
 
-  Future<Map<String, dynamic>> cancelTicket(int ticketId) async {
+  Future<Map<String, dynamic>> cancelTicket(int siteId, String ticketId) async {
     return await _api.post('/api/hotspot.php', {
-      'action': 'cancel_voucher',
-      'ticket_id': ticketId,
+      'site_id': siteId,
+      'action': 'remove_user',
+      'id': ticketId,
     });
   }
 

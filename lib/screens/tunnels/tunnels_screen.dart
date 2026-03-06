@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../services/tunnel_service.dart';
+import 'tunnel_form_screen.dart';
 
 class TunnelsScreen extends StatefulWidget {
   const TunnelsScreen({super.key});
@@ -38,6 +39,17 @@ class _TunnelsScreenState extends State<TunnelsScreen> {
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final created = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(builder: (_) => const TunnelFormScreen()),
+          );
+          if (created == true) _load();
+        },
+        backgroundColor: AppTheme.primary,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

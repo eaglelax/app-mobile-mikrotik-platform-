@@ -5,6 +5,10 @@ import '../../providers/auth_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../automatisation/automatisation_screen.dart';
 import '../discovery/discovery_screen.dart';
+import '../kpi/kpi_dashboard_screen.dart';
+import '../mikhmon/vouchers_screen.dart';
+import '../scripts/scripts_screen.dart';
+import '../tickets/ticket_batches_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../points/points_list_screen.dart';
 import '../profiles/profiles_list_screen.dart';
@@ -126,6 +130,24 @@ class MoreScreen extends StatelessWidget {
                 color: Colors.purple,
                 onTap: () => _navigate(context, const DiscoveryScreen()),
               ),
+              _MenuTile(
+                icon: Icons.bar_chart_outlined,
+                label: 'KPI',
+                color: AppTheme.accent,
+                onTap: () => _navigate(context, const KpiDashboardScreen()),
+              ),
+              _MenuTile(
+                icon: Icons.confirmation_number,
+                label: 'Vouchers',
+                color: Colors.teal,
+                onTap: () => _navigate(context, const VouchersScreen()),
+              ),
+              _MenuTile(
+                icon: Icons.inventory_2_outlined,
+                label: 'Lots Tickets',
+                color: Colors.indigo,
+                onTap: () => _navigate(context, const TicketBatchesScreen()),
+              ),
             ],
           ),
 
@@ -159,6 +181,13 @@ class MoreScreen extends StatelessWidget {
                   color: AppTheme.success,
                   onTap: () =>
                       _navigate(context, const AutomatisationScreen()),
+                ),
+                _MenuTile(
+                  icon: Icons.cloud_upload_outlined,
+                  label: 'Scripts',
+                  color: Colors.deepOrange,
+                  onTap: () =>
+                      _navigate(context, const ScriptsScreen()),
                 ),
               ],
             ),

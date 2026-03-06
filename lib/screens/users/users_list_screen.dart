@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../services/api_client.dart';
+import 'user_form_screen.dart';
 
 class UsersListScreen extends StatefulWidget {
   const UsersListScreen({super.key});
@@ -29,6 +30,47 @@ class _UsersListScreenState extends State<UsersListScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
+  Future<void> _deleteUser(Map<String, dynamic> user) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer cet utilisateur ?'),
+        content: Text('L\'utilisateur "${user['name']}" sera supprimé.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _api.post('/api/users-bulk.php', {
+        'action': 'delete',
+        'user_id': user['id'],
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Utilisateur supprimé'),
+              backgroundColor: AppTheme.success),
+        );
+      }
+      _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -37,6 +79,17 @@ class _UsersListScreenState extends State<UsersListScreen> {
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final created = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(builder: (_) => const UserFormScreen()),
+          );
+          if (created == true) _load();
+        },
+        backgroundColor: AppTheme.primary,
+        child: const Icon(Icons.person_add, color: Colors.white),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -71,32 +124,13 @@ class _UsersListScreenState extends State<UsersListScreen> {
                                   fontWeight: FontWeight.bold),
                             ),
                           ),
-                          title: Text(u['name'] ?? '',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600)),
-                          subtitle: Text(u['email'] ?? '',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey.shade500)),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
+                          title: Row(
                             children: [
-                              if (isAdmin)
-                                Container(
-                                  margin: const EdgeInsets.only(right: 6),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        AppTheme.accent.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Text('Admin',
-                                      style: TextStyle(
-                                          color: AppTheme.accent,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600)),
-                                ),
+                              Expanded(
+                                child: Text(u['name'] ?? '',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600)),
+                              ),
                               Icon(Icons.circle,
                                   size: 8,
                                   color: isActive
@@ -104,6 +138,44 @@ class _UsersListScreenState extends State<UsersListScreen> {
                                       : Colors.grey),
                             ],
                           ),
+                          subtitle: Text(u['email'] ?? '',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade500)),
+                          trailing: PopupMenuButton(
+                            itemBuilder: (_) => [
+                              const PopupMenuItem(
+                                  value: 'edit', child: Text('Modifier')),
+                              const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Supprimer',
+                                      style:
+                                          TextStyle(color: AppTheme.danger))),
+                            ],
+                            onSelected: (action) {
+                              if (action == 'edit') {
+                                Navigator.push<bool>(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) =>
+                                          UserFormScreen(user: u)),
+                                ).then((ok) {
+                                  if (ok == true) _load();
+                                });
+                              } else if (action == 'delete') {
+                                _deleteUser(u);
+                              }
+                            },
+                          ),
+                          onTap: () {
+                            Navigator.push<bool>(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => UserFormScreen(user: u)),
+                            ).then((ok) {
+                              if (ok == true) _load();
+                            });
+                          },
                         ),
                       );
                     },

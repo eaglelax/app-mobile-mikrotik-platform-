@@ -30,6 +30,114 @@ class _AutomatisationScreenState extends State<AutomatisationScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
+  Future<void> _editConfig(Map<String, dynamic> config) async {
+    final coverageCtrl = TextEditingController(
+        text: (config['min_coverage_days'] ?? '').toString());
+    final restockCtrl = TextEditingController(
+        text: (config['restock_days'] ?? '').toString());
+    final maxCtrl = TextEditingController(
+        text: (config['max_generate'] ?? '').toString());
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Modifier la règle'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('${config['site_name']} - ${config['profile_name']}',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 14),
+              TextField(
+                controller: coverageCtrl,
+                keyboardType: TextInputType.number,
+                decoration:
+                    const InputDecoration(labelText: 'Couverture min (jours)'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: restockCtrl,
+                keyboardType: TextInputType.number,
+                decoration:
+                    const InputDecoration(labelText: 'Restock (jours)'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: maxCtrl,
+                keyboardType: TextInputType.number,
+                decoration:
+                    const InputDecoration(labelText: 'Max génération'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+
+    if (saved != true) return;
+    try {
+      await _api.post('/api/auto-generate-config.php', {
+        'action': 'update_config',
+        'config_id': config['id'],
+        'min_coverage_days': int.tryParse(coverageCtrl.text) ?? 3,
+        'restock_days': int.tryParse(restockCtrl.text) ?? 3,
+        'max_generate': int.tryParse(maxCtrl.text) ?? 50,
+      });
+      _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteConfig(Map<String, dynamic> config) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer cette règle ?'),
+        content: Text(
+            '${config['site_name']} - ${config['profile_name']} sera supprimé.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _api.post('/api/auto-generate-config.php', {
+        'action': 'delete_config',
+        'config_id': config['id'],
+      });
+      _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
+        );
+      }
+    }
+  }
+
   Future<void> _toggleConfig(Map<String, dynamic> config, bool value) async {
     final id = config['id'];
     if (id == null) return;
@@ -99,10 +207,33 @@ class _AutomatisationScreenState extends State<AutomatisationScreen> {
                               'Restock: ${c['restock_days'] ?? '-'}j  '
                               'Max: ${c['max_generate'] ?? '-'}',
                               style: const TextStyle(fontSize: 12)),
-                          trailing: Switch(
-                            value: enabled,
-                            onChanged: (v) => _toggleConfig(c, v),
-                            activeThumbColor: AppTheme.success,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Switch(
+                                value: enabled,
+                                onChanged: (v) => _toggleConfig(c, v),
+                                activeThumbColor: AppTheme.success,
+                              ),
+                              PopupMenuButton(
+                                itemBuilder: (_) => [
+                                  const PopupMenuItem(
+                                      value: 'edit', child: Text('Modifier')),
+                                  const PopupMenuItem(
+                                      value: 'delete',
+                                      child: Text('Supprimer',
+                                          style: TextStyle(
+                                              color: AppTheme.danger))),
+                                ],
+                                onSelected: (action) {
+                                  if (action == 'edit') {
+                                    _editConfig(c);
+                                  } else if (action == 'delete') {
+                                    _deleteConfig(c);
+                                  }
+                                },
+                              ),
+                            ],
                           ),
                           isThreeLine: true,
                         ),

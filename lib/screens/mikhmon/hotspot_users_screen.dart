@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../models/site.dart';
 import '../../services/mikhmon_service.dart';
+import 'hotspot_user_add_screen.dart';
 
 class HotspotUsersScreen extends StatefulWidget {
   final Site site;
@@ -50,6 +51,18 @@ class _HotspotUsersScreenState extends State<HotspotUsersScreen> {
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final added = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(
+                builder: (_) => HotspotUserAddScreen(site: widget.site)),
+          );
+          if (added == true) _load();
+        },
+        backgroundColor: AppTheme.primary,
+        child: const Icon(Icons.person_add, color: Colors.white),
       ),
       body: Column(
         children: [

@@ -11,6 +11,11 @@ import 'quick_print_screen.dart';
 import 'traffic_screen.dart';
 import 'hotspot_servers_screen.dart';
 import 'dhcp_leases_screen.dart';
+import 'hotspot_user_add_screen.dart';
+import 'system_controls_screen.dart';
+import 'logs_screen.dart';
+import 'hotspot_cookies_screen.dart';
+import 'ip_bindings_screen.dart';
 
 class MikhmonDashboardScreen extends StatefulWidget {
   final Site site;
@@ -121,6 +126,13 @@ class _MikhmonDashboardScreenState extends State<MikhmonDashboardScreen> {
                           TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 12),
                   _QuickAction(
+                    icon: Icons.person_add,
+                    label: 'Ajouter un utilisateur',
+                    subtitle: 'Créer un compte hotspot manuellement',
+                    color: AppTheme.success,
+                    onTap: () => _push(HotspotUserAddScreen(site: site)),
+                  ),
+                  _QuickAction(
                     icon: Icons.bolt,
                     label: 'Vente Flash',
                     subtitle: 'Générer un voucher en 1 clic',
@@ -167,12 +179,32 @@ class _MikhmonDashboardScreenState extends State<MikhmonDashboardScreen> {
                     label: 'Trafic',
                     onTap: () => _push(TrafficScreen(site: site)),
                   ),
+                  _MenuItem(
+                    icon: Icons.cookie_outlined,
+                    label: 'Cookies Hotspot',
+                    onTap: () => _push(HotspotCookiesScreen(site: site)),
+                  ),
+                  _MenuItem(
+                    icon: Icons.lan_outlined,
+                    label: 'IP Bindings',
+                    onTap: () => _push(IpBindingsScreen(site: site)),
+                  ),
+                  _MenuItem(
+                    icon: Icons.article_outlined,
+                    label: 'Logs',
+                    onTap: () => _push(LogsScreen(site: site)),
+                  ),
 
                   const SizedBox(height: 16),
                   const Text('Système',
                       style:
                           TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 10),
+                  _MenuItem(
+                    icon: Icons.settings,
+                    label: 'Contrôles Système',
+                    onTap: () => _push(SystemControlsScreen(site: site)),
+                  ),
                   _MenuItem(
                     icon: Icons.restart_alt,
                     label: 'Redémarrer le Routeur',

@@ -41,6 +41,44 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
+  Future<void> _cancelTicket(Map<String, dynamic> ticket) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Annuler ce ticket ?'),
+        content: Text('Le ticket "${ticket['code']}" sera supprimé du routeur.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Non')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+            child: const Text('Annuler le ticket'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _service.cancelTicket(_site!.id, ticket['.id'] ?? ticket['code'] ?? '');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Ticket annulé'),
+              backgroundColor: AppTheme.success),
+        );
+      }
+      _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
+        );
+      }
+    }
+  }
+
   void _applyFilter() {
     if (_statusFilter == null) {
       _tickets = _allTickets;
@@ -151,20 +189,40 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                               subtitle: Text(
                                   '${t['profile'] ?? t['profile_name'] ?? '-'}  ${t['limit_uptime'] ?? ''}',
                                   style: const TextStyle(fontSize: 12)),
-                              trailing: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: statusColor.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  AppConstants.ticketStatuses[status] ?? status,
-                                  style: TextStyle(
-                                      color: statusColor,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600),
-                                ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: statusColor.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      AppConstants.ticketStatuses[status] ?? status,
+                                      style: TextStyle(
+                                          color: statusColor,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                  if (status == 'available')
+                                    PopupMenuButton(
+                                      itemBuilder: (_) => [
+                                        const PopupMenuItem(
+                                            value: 'cancel',
+                                            child: Text('Annuler',
+                                                style: TextStyle(
+                                                    color: AppTheme.danger))),
+                                      ],
+                                      onSelected: (action) {
+                                        if (action == 'cancel') {
+                                          _cancelTicket(t);
+                                        }
+                                      },
+                                    ),
+                                ],
                               ),
                               dense: true,
                             ),

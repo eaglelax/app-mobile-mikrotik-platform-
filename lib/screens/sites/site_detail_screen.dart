@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../models/site.dart';
 import '../../services/site_service.dart';
+import '../../services/api_client.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/stat_card.dart';
 import '../mikhmon/mikhmon_dashboard_screen.dart';
@@ -16,6 +17,7 @@ class SiteDetailScreen extends StatefulWidget {
 
 class _SiteDetailScreenState extends State<SiteDetailScreen> {
   final _service = SiteService();
+  final _api = ApiClient();
   Map<String, dynamic>? _stats;
   bool _loading = true;
   bool _testing = false;
@@ -74,6 +76,48 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteSite() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer ce site ?'),
+        content: Text(
+            'Le site "${widget.site.nom}" et toutes ses données seront supprimés. Cette action est irréversible.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _api.post('/api/full-setup.php', {
+        'action': 'delete',
+        'site_id': widget.site.id,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Site supprimé'),
+              backgroundColor: AppTheme.success),
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
         );
       }
     }
@@ -189,6 +233,24 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                       MaterialPageRoute(
                           builder: (_) =>
                               MikhmonDashboardScreen(site: site)),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _deleteSite,
+                      icon: const Icon(Icons.delete_outline,
+                          color: AppTheme.danger),
+                      label: const Text('Supprimer ce site',
+                          style: TextStyle(color: AppTheme.danger)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppTheme.danger),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
                     ),
                   ),
                 ],

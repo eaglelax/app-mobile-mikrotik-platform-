@@ -12,6 +12,10 @@ import '../screens/tunnels/tunnels_screen.dart';
 import '../screens/users/users_list_screen.dart';
 import '../screens/automatisation/automatisation_screen.dart';
 import '../screens/discovery/discovery_screen.dart';
+import '../screens/kpi/kpi_dashboard_screen.dart';
+import '../screens/mikhmon/vouchers_screen.dart';
+import '../screens/scripts/scripts_screen.dart';
+import '../screens/tickets/ticket_batches_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -102,6 +106,21 @@ class AppDrawer extends StatelessWidget {
                   label: 'Découverte',
                   onTap: () => _navigate(context, const DiscoveryScreen()),
                 ),
+                _DrawerItem(
+                  icon: Icons.bar_chart_outlined,
+                  label: 'KPI Dashboard',
+                  onTap: () => _navigate(context, const KpiDashboardScreen()),
+                ),
+                _DrawerItem(
+                  icon: Icons.confirmation_number,
+                  label: 'Vouchers',
+                  onTap: () => _navigate(context, const VouchersScreen()),
+                ),
+                _DrawerItem(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'Lots de Tickets',
+                  onTap: () => _navigate(context, const TicketBatchesScreen()),
+                ),
                 const Divider(),
                 if (auth.isAdmin) ...[
                   const Padding(
@@ -130,6 +149,12 @@ class AppDrawer extends StatelessWidget {
                     label: 'Automatisation',
                     onTap: () =>
                         _navigate(context, const AutomatisationScreen()),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.cloud_upload_outlined,
+                    label: 'Scripts & Déploiement',
+                    onTap: () =>
+                        _navigate(context, const ScriptsScreen()),
                   ),
                   const Divider(),
                 ],

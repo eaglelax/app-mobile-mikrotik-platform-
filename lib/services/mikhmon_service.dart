@@ -68,4 +68,34 @@ class MikhmonService {
     return await _api
         .post('/api/hotspot.php', {'site_id': siteId, 'action': 'reboot'});
   }
+
+  Future<Map<String, dynamic>> shutdownRouter(int siteId) async {
+    return await _api
+        .post('/api/hotspot.php', {'site_id': siteId, 'action': 'shutdown'});
+  }
+
+  Future<Map<String, dynamic>> fetchSchedulers(int siteId) async {
+    return await _api
+        .get('/api/hotspot.php', {'site_id': siteId.toString(), 'action': 'scheduler'});
+  }
+
+  Future<Map<String, dynamic>> fetchCookies(int siteId) async {
+    return await _api
+        .get('/api/hotspot.php', {'site_id': siteId.toString(), 'action': 'cookies'});
+  }
+
+  Future<Map<String, dynamic>> removeCookie(int siteId, String cookieId) async {
+    return await _api
+        .post('/api/hotspot.php', {'site_id': siteId, 'action': 'remove_cookie', 'id': cookieId});
+  }
+
+  Future<Map<String, dynamic>> fetchIpBindings(int siteId) async {
+    return await _api
+        .get('/api/hotspot.php', {'site_id': siteId.toString(), 'action': 'ip_bindings'});
+  }
+
+  Future<Map<String, dynamic>> fetchLogs(int siteId, {String topic = 'hotspot'}) async {
+    return await _api
+        .get('/api/hotspot.php', {'site_id': siteId.toString(), 'action': 'logs', 'topic': topic});
+  }
 }
