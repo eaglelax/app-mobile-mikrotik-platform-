@@ -13,6 +13,11 @@ class MikhmonService {
         .get('/api/hotspot.php', {'site_id': siteId.toString(), 'action': 'users'});
   }
 
+  Future<Map<String, dynamic>> fetchVouchers(int siteId) async {
+    return await _api
+        .get('/api/hotspot.php', {'site_id': siteId.toString(), 'action': 'vouchers'});
+  }
+
   Future<Map<String, dynamic>> fetchActiveUsers(int siteId) async {
     return await _api
         .get('/api/hotspot.php', {'site_id': siteId.toString(), 'action': 'active'});

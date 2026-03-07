@@ -32,9 +32,9 @@ class _VouchersScreenState extends State<VouchersScreen> {
     if (_site == null) return;
     setState(() => _loading = true);
     try {
-      final data = await _service.fetchHotspotUsers(_site!.id);
+      final data = await _service.fetchVouchers(_site!.id);
       _vouchers =
-          (data['users'] as List? ?? []).cast<Map<String, dynamic>>();
+          (data['vouchers'] as List? ?? []).cast<Map<String, dynamic>>();
       _applyFilters();
     } catch (_) {}
     if (mounted) setState(() => _loading = false);

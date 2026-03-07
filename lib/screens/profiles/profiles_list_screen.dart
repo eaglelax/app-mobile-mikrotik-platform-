@@ -142,8 +142,8 @@ class _ProfilesListScreenState extends State<ProfilesListScreen> {
                               style:
                                   const TextStyle(fontWeight: FontWeight.w600)),
                           subtitle: Text(
-                              'Débit: ${p['rate-limit'] ?? p['rate_limit'] ?? '-'}\n'
-                              'Durée: ${p['limit_uptime'] ?? p['limit-uptime'] ?? '-'}',
+                              'Prix: ${p['ticket_price'] ?? '-'} | Validité: ${p['validity'] ?? '-'}\n'
+                              'Stock: ${p['stock'] ?? '-'} | Moy/jour: ${p['daily_avg'] ?? '-'}',
                               style: const TextStyle(fontSize: 12)),
                           trailing: PopupMenuButton(
                             itemBuilder: (_) => [

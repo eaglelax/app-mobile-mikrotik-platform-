@@ -137,11 +137,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                               style: const TextStyle(
                                   fontSize: 13, color: Colors.grey)),
                         ),
-                      if (_result!['router_version'] != null)
+                      if ((_result!['router_version'] ?? _result!['version']) != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                              'RouterOS: ${_result!['router_version']}',
+                              'RouterOS: ${_result!['router_version'] ?? _result!['version']}',
                               style: const TextStyle(fontSize: 13)),
                         ),
                       if (_result!['response_time'] != null)

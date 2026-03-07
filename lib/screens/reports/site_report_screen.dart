@@ -38,8 +38,26 @@ class _SiteReportScreenState extends State<SiteReportScreen> {
     setState(() => _loading = true);
     try {
       final siteIds = [widget.site.id];
+      final now = DateTime.now();
+      final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      String dateFrom;
+      switch (_period) {
+        case 'today':
+          dateFrom = today;
+        case '7d':
+          final d = now.subtract(const Duration(days: 7));
+          dateFrom = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+        case '30d':
+          final d = now.subtract(const Duration(days: 30));
+          dateFrom = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+        case '90d':
+          final d = now.subtract(const Duration(days: 90));
+          dateFrom = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+        default:
+          dateFrom = today;
+      }
       final results = await Future.wait([
-        _kpi.fetchRevenue(period: _period, siteIds: siteIds),
+        _kpi.fetchRevenue(period: _period, siteIds: siteIds, dateFrom: dateFrom, dateTo: today),
         _kpi.fetchSalesMix(siteIds: siteIds),
         _kpi.fetchActivationRate(siteIds: siteIds),
       ]);

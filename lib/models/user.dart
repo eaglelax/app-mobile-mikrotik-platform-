@@ -21,13 +21,15 @@ class User {
 
   bool hasFeature(String feature) {
     if (isAdmin) return true;
-    return features?['feature_$feature'] == true ||
+    return features?[feature] == true ||
+        features?[feature] == 1 ||
+        features?['feature_$feature'] == true ||
         features?['feature_$feature'] == 1;
   }
 
   int getQuota(String resource) {
     if (isAdmin) return 999;
-    return features?['max_$resource'] ?? 0;
+    return features?[resource] ?? features?['max_$resource'] ?? 0;
   }
 
   factory User.fromJson(Map<String, dynamic> json) => User(
@@ -48,5 +50,7 @@ class User {
         'email': email,
         'role': role,
         'status': status,
+        if (lastLogin != null) 'last_login': lastLogin!.toIso8601String(),
+        if (features != null) 'features': features,
       };
 }
