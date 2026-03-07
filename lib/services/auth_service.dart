@@ -21,6 +21,7 @@ class AuthService {
         _api.setCsrfToken(data['csrf_token']);
       }
       await _saveUser(user);
+      await _api.saveCredentials(email, password);
       return user;
     }
     throw ApiException(data['error'] ?? 'Identifiants incorrects');
