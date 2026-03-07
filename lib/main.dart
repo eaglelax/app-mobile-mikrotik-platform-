@@ -6,6 +6,7 @@ import 'providers/auth_provider.dart';
 import 'providers/site_provider.dart';
 import 'providers/notification_provider.dart';
 import 'screens/auth/login_screen.dart';
+import 'screens/auth/pin_screen.dart';
 import 'widgets/app_shell.dart';
 
 void main() {
@@ -40,20 +41,69 @@ class MikroTikApp extends StatelessWidget {
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeMode.light,
-        home: Consumer<AuthProvider>(
-          builder: (ctx, auth, _) {
-            if (auth.isLoading) {
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
-            }
-            if (auth.isAuthenticated) {
-              return const AppShell();
-            }
-            return const LoginScreen();
-          },
-        ),
+        home: const _AuthGate(),
       ),
+    );
+  }
+}
+
+class _AuthGate extends StatelessWidget {
+  const _AuthGate();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AuthProvider>(
+      builder: (ctx, auth, _) {
+        if (auth.isLoading) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        // Not logged in → login screen
+        if (!auth.isAuthenticated) {
+          return const LoginScreen();
+        }
+
+        // Just logged in, no PIN set yet → PIN setup
+        if (auth.needsPinSetup) {
+          return _PinSetupGate(auth: auth);
+        }
+
+        // Has PIN but not yet verified this session → PIN entry
+        if (auth.hasPin && !auth.pinVerified) {
+          return _PinEntryGate(auth: auth);
+        }
+
+        // All good → main app
+        return const AppShell();
+      },
+    );
+  }
+}
+
+class _PinSetupGate extends StatelessWidget {
+  final AuthProvider auth;
+  const _PinSetupGate({required this.auth});
+
+  @override
+  Widget build(BuildContext context) {
+    return PinScreen(
+      isSetup: true,
+      key: const ValueKey('pin-setup'),
+    );
+  }
+}
+
+class _PinEntryGate extends StatelessWidget {
+  final AuthProvider auth;
+  const _PinEntryGate({required this.auth});
+
+  @override
+  Widget build(BuildContext context) {
+    return PinScreen(
+      isSetup: false,
+      key: const ValueKey('pin-entry'),
     );
   }
 }
