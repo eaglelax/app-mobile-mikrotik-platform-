@@ -22,6 +22,44 @@ class _TunnelsScreenState extends State<TunnelsScreen> {
     _load();
   }
 
+  Future<void> _deleteTunnel(Map<String, dynamic> t) async {
+    final name = t['tunnel_label'] ?? t['tunnel_name'] ?? 'ce tunnel';
+    final tunnelId = t['id'] ?? t['tunnel_id'];
+    if (tunnelId == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer le tunnel'),
+        content: Text('Supprimer "$name" ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      final result = await _service.delete(int.parse(tunnelId.toString()));
+      if (result['success'] == true) {
+        _load();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['error'] ?? 'Erreur'), backgroundColor: AppTheme.danger),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
+        );
+      }
+    }
+  }
+
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
@@ -83,6 +121,7 @@ class _TunnelsScreenState extends State<TunnelsScreen> {
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
+                          onLongPress: () => _deleteTunnel(t),
                           leading: Icon(
                             Icons.vpn_key,
                             color: isActive ? AppTheme.success : Colors.grey,

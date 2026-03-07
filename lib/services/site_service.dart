@@ -22,7 +22,14 @@ class SiteService {
   }
 
   Future<Map<String, dynamic>> createSite(Map<String, dynamic> data) async {
-    return await _api.post('/api/full-setup.php', data);
+    return await _api.post('/api/sites-list.php', data);
+  }
+
+  Future<Map<String, dynamic>> deleteSite(int siteId) async {
+    return await _api.post('/api/sites-list.php', {
+      'action': 'delete',
+      'site_id': siteId,
+    });
   }
 
   Future<Map<String, dynamic>> syncSales(int siteId) async {

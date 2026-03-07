@@ -4,6 +4,7 @@ import '../../models/point.dart';
 import '../../models/site.dart';
 import '../../services/point_service_api.dart';
 import '../../widgets/site_selector.dart';
+import 'point_form_screen.dart';
 
 class PointsListScreen extends StatefulWidget {
   final Site? site;
@@ -24,6 +25,40 @@ class _PointsListScreenState extends State<PointsListScreen> {
     super.initState();
     _site = widget.site;
     if (_site != null) _load();
+  }
+
+  Future<void> _deletePoint(Point point) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer le point'),
+        content: Text('Supprimer "${point.name}" ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      final result = await _service.delete(point.id);
+      if (result['success'] == true) {
+        _load();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['error'] ?? 'Erreur'), backgroundColor: AppTheme.danger),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
+        );
+      }
+    }
   }
 
   Future<void> _load() async {
@@ -69,8 +104,14 @@ class _PointsListScreenState extends State<PointsListScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Navigate to add point form
+        onPressed: () async {
+          final created = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PointFormScreen(siteId: _site!.id),
+            ),
+          );
+          if (created == true) _load();
         },
         child: const Icon(Icons.add),
       ),
@@ -94,6 +135,18 @@ class _PointsListScreenState extends State<PointsListScreen> {
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
+                          onLongPress: () => _deletePoint(p),
+                          onTap: () async {
+                            final edited = await Navigator.push<bool>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PointFormScreen(
+                                  siteId: _site!.id, point: p,
+                                ),
+                              ),
+                            );
+                            if (edited == true) _load();
+                          },
                           leading: Icon(
                             typeIcons[p.type] ?? Icons.store,
                             color: p.isActive ? AppTheme.primary : Colors.grey,

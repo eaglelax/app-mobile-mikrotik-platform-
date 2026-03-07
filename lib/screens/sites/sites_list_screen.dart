@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../models/site.dart';
 import '../../providers/site_provider.dart';
+import '../../services/site_service.dart';
 import '../../utils/constants.dart';
 import 'site_detail_screen.dart';
 import 'site_form_screen.dart';
@@ -16,10 +17,56 @@ class SitesListScreen extends StatefulWidget {
 
 class _SitesListScreenState extends State<SitesListScreen> {
   String? _statusFilter;
+  String _search = '';
+
+  final _siteService = SiteService();
+
+  Future<void> _deleteSite(Site site, SiteProvider provider) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer ce site ?'),
+        content: Text('Le site "${site.nom}" et toutes ses données seront supprimés.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _siteService.deleteSite(site.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Site supprimé'), backgroundColor: AppTheme.success),
+        );
+        provider.fetchSites();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
+        );
+      }
+    }
+  }
 
   List<Site> _filtered(List<Site> sites) {
-    if (_statusFilter == null) return sites;
-    return sites.where((s) => s.status == _statusFilter).toList();
+    var list = sites;
+    if (_search.isNotEmpty) {
+      final q = _search.toLowerCase();
+      list = list.where((s) =>
+          s.nom.toLowerCase().contains(q) ||
+          s.routerIp.toLowerCase().contains(q)).toList();
+    }
+    if (_statusFilter != null) {
+      list = list.where((s) => s.status == _statusFilter).toList();
+    }
+    return list;
   }
 
   @override
@@ -52,6 +99,22 @@ class _SitesListScreenState extends State<SitesListScreen> {
         onRefresh: () => siteProvider.fetchSites(),
         child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: 'Rechercher un site...',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                ),
+                onChanged: (v) => setState(() => _search = v),
+              ),
+            ),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -86,7 +149,10 @@ class _SitesListScreenState extends State<SitesListScreen> {
                           padding: const EdgeInsets.all(16),
                           itemCount: sites.length,
                           itemBuilder: (ctx, i) =>
-                              _SiteCard(site: sites[i]),
+                              _SiteCard(
+                                site: sites[i],
+                                onDelete: () => _deleteSite(sites[i], siteProvider),
+                              ),
                         ),
             ),
           ],
@@ -98,7 +164,8 @@ class _SitesListScreenState extends State<SitesListScreen> {
 
 class _SiteCard extends StatelessWidget {
   final Site site;
-  const _SiteCard({required this.site});
+  final VoidCallback? onDelete;
+  const _SiteCard({required this.site, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -115,6 +182,7 @@ class _SiteCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: () => Navigator.push(context,
             MaterialPageRoute(builder: (_) => SiteDetailScreen(site: site))),
+        onLongPress: onDelete,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(

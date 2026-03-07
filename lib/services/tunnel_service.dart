@@ -12,6 +12,13 @@ class TunnelService {
     return await _api.post(ApiConfig.createTunnel, data);
   }
 
+  Future<Map<String, dynamic>> delete(int tunnelId) async {
+    return await _api.post(ApiConfig.createTunnel, {
+      'action': 'delete',
+      'tunnel_id': tunnelId,
+    });
+  }
+
   Future<Map<String, dynamic>> getConfig(int tunnelId) async {
     return await _api.get('/tunnels/config.php', {
       'tunnel_id': tunnelId.toString(),

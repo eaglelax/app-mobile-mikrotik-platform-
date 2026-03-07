@@ -241,7 +241,7 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       DropdownButtonFormField<String>(
-                        value: _selectedProfile,
+                        initialValue: _selectedProfile,
                         decoration: const InputDecoration(
                           labelText: 'Profil',
                           border: OutlineInputBorder(),
