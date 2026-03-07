@@ -96,7 +96,7 @@ class _PointsListScreenState extends State<PointsListScreen> {
           children: [
             const Text('Points de Vente'),
             Text(_site!.nom,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
           ],
         ),
         actions: [

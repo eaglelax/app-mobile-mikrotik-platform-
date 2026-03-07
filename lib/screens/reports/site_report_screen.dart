@@ -122,7 +122,7 @@ class _SiteReportScreenState extends State<SiteReportScreen> {
                                   fontSize: 28, fontWeight: FontWeight.w800)),
                           const SizedBox(height: 4),
                           Text(
-                              '${_revenue?['count'] ?? 0} ventes | Moyenne: ${Fmt.currency(_revenue?['average'] ?? 0)}',
+                              '${_revenue?['count'] ?? 0} ventes | Moyenne: ${Fmt.currency(_revenue?['avg_basket'] ?? 0)}',
                               style: TextStyle(
                                   fontSize: 13, color: Colors.grey.shade600)),
                         ],
@@ -156,7 +156,7 @@ class _SiteReportScreenState extends State<SiteReportScreen> {
                                         fontSize: 13,
                                         color: Colors.grey.shade600)),
                                 Text(
-                                    '${(_activation?['rate'] ?? 0).toStringAsFixed(1)}%',
+                                    '${((_activation?['activation_rate'] ?? _activation?['rate'] ?? 0) as num).toStringAsFixed(1)}%',
                                     style: const TextStyle(
                                         fontSize: 22,
                                         fontWeight: FontWeight.w800)),
@@ -174,13 +174,13 @@ class _SiteReportScreenState extends State<SiteReportScreen> {
                       style:
                           TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 10),
-                  if (_salesMix?['mix'] != null)
-                    ...(_salesMix!['mix'] as List? ?? []).map<Widget>((item) {
-                      final pct = (item['percentage'] ?? 0).toDouble();
+                  if ((_salesMix?['items'] ?? _salesMix?['mix']) != null)
+                    ...((_salesMix!['items'] ?? _salesMix!['mix']) as List? ?? []).map<Widget>((item) {
+                      final pct = ((item['percent'] ?? item['percentage'] ?? 0) as num).toDouble();
                       return Card(
                         margin: const EdgeInsets.only(bottom: 6),
                         child: ListTile(
-                          title: Text(item['profile'] ?? '',
+                          title: Text(item['profile_name'] ?? item['profile'] ?? '',
                               style: const TextStyle(
                                   fontWeight: FontWeight.w600, fontSize: 14)),
                           subtitle: ClipRRect(

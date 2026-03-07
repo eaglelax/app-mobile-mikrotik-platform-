@@ -119,7 +119,7 @@ class _LogsScreenState extends State<LogsScreen> {
                                         Text(topics,
                                             style: TextStyle(
                                                 fontSize: 10,
-                                                color: Colors.grey.shade400)),
+                                                color: Colors.grey.shade600)),
                                       ],
                                     ),
                                     const SizedBox(height: 4),

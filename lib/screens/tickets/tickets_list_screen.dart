@@ -113,7 +113,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
           children: [
             const Text('Tickets'),
             Text(_site!.nom,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
           ],
         ),
         actions: [

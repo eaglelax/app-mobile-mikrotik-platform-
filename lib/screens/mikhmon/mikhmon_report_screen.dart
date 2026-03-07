@@ -35,9 +35,29 @@ class _MikhmonReportScreenState extends State<MikhmonReportScreen> {
     try {
       final data = await _api.get('/api/sync-sales.php', {
         'site_id': widget.site.id.toString(),
-        'period': _period,
       });
-      _data = data;
+      final allSales = (data['sales'] as List? ?? []).cast<Map<String, dynamic>>();
+      final now = DateTime.now();
+      final filtered = allSales.where((s) {
+        final dateStr = s['sale_date']?.toString() ?? '';
+        final date = DateTime.tryParse(dateStr);
+        if (date == null) return false;
+        return switch (_period) {
+          'today' => date.year == now.year && date.month == now.month && date.day == now.day,
+          '7d' => now.difference(date).inDays < 7,
+          '30d' => now.difference(date).inDays < 30,
+          _ => true,
+        };
+      }).toList();
+      num totalRevenue = 0;
+      for (final s in filtered) {
+        totalRevenue += (s['price'] is num ? s['price'] as num : num.tryParse('${s['price']}') ?? 0);
+      }
+      _data = {
+        'sales': filtered,
+        'total_revenue': totalRevenue,
+        'total_sales': filtered.length,
+      };
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }

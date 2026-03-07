@@ -67,7 +67,7 @@ class _MikhmonDashboardScreenState extends State<MikhmonDashboardScreen> {
           children: [
             const Text('Mikhmon'),
             Text(site.nom,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
           ],
         ),
         actions: [

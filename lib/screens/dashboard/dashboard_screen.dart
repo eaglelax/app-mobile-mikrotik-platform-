@@ -310,7 +310,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Column(
                         children: [
                           Icon(Icons.dashboard_outlined,
-                              size: 64, color: Colors.grey.shade400),
+                              size: 64, color: Colors.grey.shade600),
                           const SizedBox(height: 16),
                           Text('Aucune donnee pour le moment',
                               style: TextStyle(

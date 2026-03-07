@@ -30,8 +30,9 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
     setState(() => _loading = true);
     try {
       final data = await _service.fetchBatches(_site!.id);
+      final inner = data['data'] is Map ? data['data'] as Map<String, dynamic> : data;
       _batches =
-          (data['batches'] as List? ?? []).cast<Map<String, dynamic>>();
+          (inner['batches'] as List? ?? []).cast<Map<String, dynamic>>();
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }
@@ -91,7 +92,7 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
                                 color: AppTheme.primary, size: 22),
                           ),
                           title: Text(
-                              '${b['profile_name'] ?? b['profile'] ?? '-'} x${b['quantity'] ?? b['count'] ?? '?'}',
+                              '${b['profile_name'] ?? b['profile'] ?? '-'} x${b['quantity_generated'] ?? b['quantity'] ?? b['count'] ?? '?'}',
                               style: const TextStyle(
                                   fontWeight: FontWeight.w600)),
                           subtitle: Text(

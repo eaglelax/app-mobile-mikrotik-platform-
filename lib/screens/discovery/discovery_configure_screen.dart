@@ -93,12 +93,12 @@ class _DiscoveryConfigureScreenState extends State<DiscoveryConfigureScreen> {
                     const SizedBox(height: 16),
 
                     // Details
-                    if (_diagnostic!['data'] != null) ...[
+                    if ((_diagnostic!['results'] ?? _diagnostic!['data']) != null) ...[
                       const Text('Informations',
                           style: TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 10),
-                      ...(_diagnostic!['data'] as Map<String, dynamic>)
+                      ...((_diagnostic!['results'] ?? _diagnostic!['data']) as Map<String, dynamic>)
                           .entries
                           .map((e) => Card(
                                 margin: const EdgeInsets.only(bottom: 6),

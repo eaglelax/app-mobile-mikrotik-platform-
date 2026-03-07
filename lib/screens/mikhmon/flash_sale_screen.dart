@@ -87,7 +87,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
           children: [
             const Text('Vente Flash'),
             Text(widget.site.nom,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
           ],
         ),
       ),

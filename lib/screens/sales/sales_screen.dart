@@ -99,7 +99,7 @@ class _SalesScreenState extends State<SalesScreen> {
           children: [
             const Text('Ventes'),
             Text(_site!.nom,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
           ],
         ),
         actions: [

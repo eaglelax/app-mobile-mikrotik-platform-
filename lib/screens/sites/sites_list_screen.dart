@@ -282,7 +282,7 @@ class _MiniStat extends StatelessWidget {
         Icon(icon, size: 14, color: color),
         const SizedBox(width: 4),
         Text(label,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
       ],
     );
   }

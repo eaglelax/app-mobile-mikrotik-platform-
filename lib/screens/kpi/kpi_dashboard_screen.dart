@@ -242,7 +242,7 @@ class _KpiDashboardScreenState extends State<KpiDashboardScreen> {
                     final lowStockProfiles = <String>[];
                     for (final item in stockoutItems) {
                       final profiles =
-                          item['low_stock_profiles'] as List? ?? [];
+                          item['profiles'] ?? item['low_stock_profiles'] as List? ?? [];
                       for (final p in profiles) {
                         final name = p['profile_name'] ?? p['name'] ?? '';
                         if (name.isNotEmpty) lowStockProfiles.add(name);

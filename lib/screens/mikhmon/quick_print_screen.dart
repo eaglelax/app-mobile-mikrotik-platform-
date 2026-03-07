@@ -207,7 +207,7 @@ class _QuickPrintScreenState extends State<QuickPrintScreen> {
           children: [
             const Text('Quick Print'),
             Text(widget.site.nom,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
           ],
         ),
       ),
