@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../config/theme.dart';
 import '../../models/site.dart';
+import '../../services/api_client.dart';
 import '../../services/mikhmon_service.dart';
 import '../../utils/formatters.dart';
 
@@ -17,6 +18,8 @@ class FlashSaleScreen extends StatefulWidget {
 class _FlashSaleScreenState extends State<FlashSaleScreen> {
   final _service = MikhmonService();
   List<Map<String, dynamic>> _profiles = [];
+  List<Map<String, dynamic>> _points = [];
+  int? _selectedPointId;
   bool _loading = true;
   bool _selling = false;
   Map<String, dynamic>? _result;
@@ -30,9 +33,19 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
   Future<void> _loadProfiles() async {
     setState(() => _loading = true);
     try {
-      final data = await _service.fetchProfiles(widget.site.id);
-      final profiles = data['profiles'] as List? ?? [];
-      _profiles = profiles.cast<Map<String, dynamic>>();
+      final api = ApiClient();
+      final data = await api.get('/api/flash-sale.php', {'site_id': widget.site.id.toString()});
+      if (data['success'] == true) {
+        final profiles = data['profiles'] as List? ?? [];
+        _profiles = profiles.cast<Map<String, dynamic>>();
+        final pts = data['points'] as List? ?? [];
+        _points = pts.cast<Map<String, dynamic>>();
+        if (_points.isNotEmpty) {
+          _selectedPointId = _points.first['id'] is int
+              ? _points.first['id'] as int
+              : int.tryParse(_points.first['id'].toString());
+        }
+      }
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }
@@ -45,7 +58,12 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
     });
 
     try {
-      final data = await _service.flashSale(widget.site.id, profileName);
+      final api = ApiClient();
+      final data = await api.post('/api/flash-sale.php', {
+        'site_id': widget.site.id,
+        'profile': profileName,
+        if (_selectedPointId != null) 'point_id': _selectedPointId,
+      });
       if (data['success'] == true) {
         setState(() => _result = data);
       } else {
@@ -115,7 +133,27 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
       return const Center(child: Text('Aucun profil disponible'));
     }
 
-    return GridView.builder(
+    return Column(
+      children: [
+        if (_points.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: DropdownButtonFormField<int>(
+              value: _selectedPointId,
+              decoration: const InputDecoration(
+                labelText: 'Point de vente',
+                prefixIcon: Icon(Icons.storefront),
+                isDense: true,
+              ),
+              items: _points.map((p) {
+                final id = p['id'] is int ? p['id'] as int : int.tryParse(p['id'].toString()) ?? 0;
+                return DropdownMenuItem(value: id, child: Text(p['name'] ?? ''));
+              }).toList(),
+              onChanged: (v) => setState(() => _selectedPointId = v),
+            ),
+          ),
+        Expanded(
+          child: GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -202,6 +240,9 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
           ),
         );
       },
+    ),
+        ),
+      ],
     );
   }
 

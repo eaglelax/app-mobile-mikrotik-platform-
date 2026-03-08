@@ -19,6 +19,8 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
   final _api = ApiClient();
   Site? _selectedSite;
   List<Map<String, dynamic>> _profiles = [];
+  List<Map<String, dynamic>> _points = [];
+  int? _selectedPointId;
   bool _loadingProfiles = false;
   bool _generating = false;
   Map<String, dynamic>? _result;
@@ -37,8 +39,12 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
           ApiConfig.flashSale, {'site_id': site.id.toString()});
       if (data['success'] == true) {
         final list = data['profiles'] as List? ?? [];
-        setState(() => _profiles =
-            list.map((p) => Map<String, dynamic>.from(p)).toList());
+        final pts = data['points'] as List? ?? [];
+        setState(() {
+          _profiles = list.map((p) => Map<String, dynamic>.from(p)).toList();
+          _points = pts.map((p) => Map<String, dynamic>.from(p)).toList();
+          _selectedPointId = _points.isNotEmpty ? (_points.first['id'] is int ? _points.first['id'] : int.tryParse(_points.first['id'].toString())) : null;
+        });
       } else {
         setState(() => _error = data['error'] ?? 'Erreur inconnue');
       }
@@ -59,6 +65,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
       final data = await _api.post(ApiConfig.flashSale, {
         'site_id': _selectedSite!.id,
         'profile': profileName,
+        if (_selectedPointId != null) 'point_id': _selectedPointId,
       });
       if (data['success'] == true) {
         setState(() => _result = data);
@@ -149,6 +156,23 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
         ),
+        if (_points.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: DropdownButtonFormField<int>(
+              value: _selectedPointId,
+              decoration: const InputDecoration(
+                labelText: 'Point de vente',
+                prefixIcon: Icon(Icons.storefront),
+                isDense: true,
+              ),
+              items: _points.map((p) {
+                final id = p['id'] is int ? p['id'] as int : int.tryParse(p['id'].toString()) ?? 0;
+                return DropdownMenuItem(value: id, child: Text(p['name'] ?? ''));
+              }).toList(),
+              onChanged: (v) => setState(() => _selectedPointId = v),
+            ),
+          ),
         if (_error != null)
           Container(
             margin: const EdgeInsets.all(16),

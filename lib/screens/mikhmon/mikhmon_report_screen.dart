@@ -17,6 +17,7 @@ class _MikhmonReportScreenState extends State<MikhmonReportScreen> {
   bool _loading = true;
   Map<String, dynamic>? _data;
   String _period = 'today';
+  String? _error;
 
   final _periods = const {
     'today': "Aujourd'hui",
@@ -31,7 +32,7 @@ class _MikhmonReportScreenState extends State<MikhmonReportScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() { _loading = true; _error = null; });
     try {
       final data = await _api.get('/api/sync-sales.php', {
         'site_id': widget.site.id.toString(),
@@ -58,7 +59,9 @@ class _MikhmonReportScreenState extends State<MikhmonReportScreen> {
         'total_revenue': totalRevenue,
         'total_sales': filtered.length,
       };
-    } catch (_) {}
+    } catch (e) {
+      _error = e.toString();
+    }
     if (mounted) setState(() => _loading = false);
   }
 
@@ -77,6 +80,26 @@ class _MikhmonReportScreenState extends State<MikhmonReportScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline, size: 48, color: AppTheme.danger),
+                        const SizedBox(height: 12),
+                        Text('Erreur: $_error', textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _load,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Réessayer'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(
