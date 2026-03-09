@@ -92,7 +92,12 @@ class _PointFormScreenState extends State<PointFormScreen> {
                   : null,
             );
             if (mounted && gr['success'] == true) {
-              await _showGerantCreated(gr);
+              // Backend returns gerant info nested in 'gerant' key
+              final gerantData = gr['gerant'] as Map<String, dynamic>? ?? {};
+              await _showGerantCreated(
+                gerantData['username'] ?? '',
+                _gerantPasswordCtrl.text.trim(),
+              );
             }
           } catch (e) {
             if (mounted) {
@@ -124,9 +129,7 @@ class _PointFormScreenState extends State<PointFormScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
-  Future<void> _showGerantCreated(Map<String, dynamic> result) async {
-    final username = result['username'] ?? '';
-    final password = result['password'] ?? '';
+  Future<void> _showGerantCreated(String username, String password) async {
     if (username.isEmpty) return;
     await showDialog(
       context: context,
