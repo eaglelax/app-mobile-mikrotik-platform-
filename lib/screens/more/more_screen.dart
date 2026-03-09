@@ -27,271 +27,296 @@ class MoreScreen extends StatelessWidget {
     final auth = context.watch<AuthProvider>();
     final notif = context.watch<NotificationProvider>();
     final user = auth.user;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Menu')),
+      backgroundColor: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
         children: [
-          // User card
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppTheme.lightCard,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: AppTheme.primary,
-                  radius: 24,
-                  child: Text(
-                    (user?.name ?? 'U').substring(0, 1).toUpperCase(),
-                    style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(user?.name ?? '',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 16)),
-                      Text(user?.email ?? '',
-                          style: TextStyle(
-                              fontSize: 13, color: Colors.grey.shade600)),
-                    ],
-                  ),
-                ),
-                if (user?.isAdmin == true)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accent.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(10),
+          // ─── Profile header ───
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: isDark ? AppTheme.darkCard : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: isDark ? null : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
                     ),
-                    child: const Text('Admin',
-                        style:
-                            TextStyle(fontSize: 12, color: AppTheme.accent)),
-                  ),
-              ],
+                  ],
+                  border: isDark ? Border.all(color: AppTheme.darkBorder) : null,
+                ),
+                child: Row(
+                  children: [
+                    // Avatar with gradient ring
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 26,
+                        backgroundColor: isDark ? AppTheme.darkCard : Colors.white,
+                        child: Text(
+                          (user?.name ?? 'U')[0].toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user?.name ?? '',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white : const Color(0xFF1A1D21),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            user?.email ?? '',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (user?.isAdmin == true)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          'Admin',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primary,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
 
           const SizedBox(height: 20),
 
-          // Main features grid
-          const _SectionTitle('Gestion'),
+          // ─── Gestion ───
+          _sectionLabel('Gestion', isDark),
           const SizedBox(height: 10),
-          GridView.count(
-            crossAxisCount: 3,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            children: [
-              _MenuTile(
-                icon: Icons.store_outlined,
-                label: 'Points de Vente',
-                color: AppTheme.primary,
-                onTap: () => _navigate(context, const PointsListScreen()),
-              ),
-              _MenuTile(
-                icon: Icons.wifi_outlined,
-                label: 'Profils',
-                color: AppTheme.info,
-                onTap: () => _navigate(context, const ProfilesListScreen()),
-              ),
-              _MenuTile(
-                icon: Icons.confirmation_number_outlined,
-                label: 'Tickets',
-                color: AppTheme.warning,
-                onTap: () => _navigate(context, const TicketsListScreen()),
-              ),
-              _MenuTile(
-                icon: Icons.receipt_long_outlined,
-                label: 'Ventes',
-                color: AppTheme.success,
-                onTap: () => _navigate(context, const SalesScreen()),
-              ),
-              _MenuTile(
-                icon: Icons.flash_on,
-                label: 'Vente Flash',
-                color: Colors.deepOrange,
-                onTap: () => _navigate(context, const FlashSaleScreen()),
-              ),
-              _MenuTile(
-                icon: Icons.notifications_outlined,
-                label: 'Notifications',
-                color: Colors.orange,
-                badge: notif.unreadCount,
-                onTap: () => _navigate(context, const NotificationsScreen()),
-              ),
-              _MenuTile(
-                icon: Icons.search_outlined,
-                label: 'Decouverte',
-                color: Colors.purple,
-                onTap: () => _navigate(context, const DiscoveryScreen()),
-              ),
-              _MenuTile(
-                icon: Icons.bar_chart_outlined,
-                label: 'KPI',
-                color: AppTheme.accent,
-                onTap: () => _navigate(context, const KpiDashboardScreen()),
-              ),
-              _MenuTile(
-                icon: Icons.confirmation_number,
-                label: 'Vouchers',
-                color: Colors.teal,
-                onTap: () => _navigate(context, const VouchersScreen()),
-              ),
-              _MenuTile(
-                icon: Icons.inventory_2_outlined,
-                label: 'Lots Tickets',
-                color: Colors.indigo,
-                onTap: () => _navigate(context, const TicketBatchesScreen()),
-              ),
-              _MenuTile(
-                icon: Icons.assessment_outlined,
-                label: 'Rapports',
-                color: Colors.brown,
-                onTap: () => _navigate(context, const ReportsScreen()),
-              ),
-            ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                _menuRow(context, isDark, [
+                  _MenuItem(Icons.store_rounded, 'Points de Vente', const Color(0xFF3B82F6), () => _nav(context, const PointsListScreen())),
+                  _MenuItem(Icons.wifi_rounded, 'Profils', const Color(0xFF06B6D4), () => _nav(context, const ProfilesListScreen())),
+                  _MenuItem(Icons.confirmation_number_rounded, 'Tickets', const Color(0xFFF59E0B), () => _nav(context, const TicketsListScreen())),
+                  _MenuItem(Icons.receipt_long_rounded, 'Ventes', const Color(0xFF10B981), () => _nav(context, const SalesScreen())),
+                ]),
+                const SizedBox(height: 12),
+                _menuRow(context, isDark, [
+                  _MenuItem(Icons.flash_on_rounded, 'Vente Flash', const Color(0xFFEF4444), () => _nav(context, const FlashSaleScreen())),
+                  _MenuItem(Icons.notifications_rounded, 'Notifications', const Color(0xFFF97316), () => _nav(context, const NotificationsScreen()), badge: notif.unreadCount),
+                  _MenuItem(Icons.travel_explore_rounded, 'Decouverte', const Color(0xFF8B5CF6), () => _nav(context, const DiscoveryScreen())),
+                  _MenuItem(Icons.bar_chart_rounded, 'KPI', const Color(0xFFD97706), () => _nav(context, const KpiDashboardScreen())),
+                ]),
+                const SizedBox(height: 12),
+                _menuRow(context, isDark, [
+                  _MenuItem(Icons.loyalty_rounded, 'Vouchers', const Color(0xFF14B8A6), () => _nav(context, const VouchersScreen())),
+                  _MenuItem(Icons.inventory_rounded, 'Lots Tickets', const Color(0xFF6366F1), () => _nav(context, const TicketBatchesScreen())),
+                  _MenuItem(Icons.assessment_rounded, 'Rapports', const Color(0xFF78716C), () => _nav(context, const ReportsScreen())),
+                  _MenuItem(null, '', Colors.transparent, () {}), // empty slot
+                ]),
+              ],
+            ),
           ),
 
-          // Admin section
+          // ─── Admin ───
           if (auth.isAdmin) ...[
             const SizedBox(height: 20),
-            const _SectionTitle('Administration'),
+            _sectionLabel('Administration', isDark),
             const SizedBox(height: 10),
-            GridView.count(
-              crossAxisCount: 3,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              children: [
-                _MenuTile(
-                  icon: Icons.people_outlined,
-                  label: 'Utilisateurs',
-                  color: AppTheme.info,
-                  onTap: () => _navigate(context, const UsersListScreen()),
-                ),
-                _MenuTile(
-                  icon: Icons.vpn_key_outlined,
-                  label: 'Tunnels VPN',
-                  color: AppTheme.accent,
-                  onTap: () => _navigate(context, const TunnelsScreen()),
-                ),
-                _MenuTile(
-                  icon: Icons.auto_mode_outlined,
-                  label: 'Automatisation',
-                  color: AppTheme.success,
-                  onTap: () =>
-                      _navigate(context, const AutomatisationScreen()),
-                ),
-                _MenuTile(
-                  icon: Icons.cloud_upload_outlined,
-                  label: 'Scripts',
-                  color: Colors.deepOrange,
-                  onTap: () =>
-                      _navigate(context, const ScriptsScreen()),
-                ),
-              ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _menuRow(context, isDark, [
+                _MenuItem(Icons.people_rounded, 'Utilisateurs', const Color(0xFF06B6D4), () => _nav(context, const UsersListScreen())),
+                _MenuItem(Icons.vpn_key_rounded, 'Tunnels VPN', const Color(0xFFF59E0B), () => _nav(context, const TunnelsScreen())),
+                _MenuItem(Icons.auto_mode_rounded, 'Automatisation', const Color(0xFF10B981), () => _nav(context, const AutomatisationScreen())),
+                _MenuItem(Icons.terminal_rounded, 'Scripts', const Color(0xFFEF4444), () => _nav(context, const ScriptsScreen())),
+              ]),
             ),
           ],
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
 
-          // Logout
-          OutlinedButton.icon(
-            onPressed: () => auth.logout(),
-            icon: const Icon(Icons.logout, color: AppTheme.danger),
-            label: const Text('Deconnexion',
-                style: TextStyle(color: AppTheme.danger)),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppTheme.danger),
-              padding: const EdgeInsets.symmetric(vertical: 14),
+          // ─── Logout ───
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: GestureDetector(
+              onTap: () => auth.logout(),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppTheme.danger.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.danger.withValues(alpha: 0.25)),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.logout_rounded, color: AppTheme.danger, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Deconnexion',
+                      style: TextStyle(
+                        color: AppTheme.danger,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 16),
+
+          const SizedBox(height: 30),
         ],
       ),
     );
   }
 
-  void _navigate(BuildContext context, Widget screen) {
+  Widget _sectionLabel(String title, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Text(
+        title.toUpperCase(),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: Colors.grey.shade500,
+          letterSpacing: 1,
+        ),
+      ),
+    );
+  }
+
+  Widget _menuRow(BuildContext context, bool isDark, List<_MenuItem> items) {
+    return Row(
+      children: items.map((item) {
+        if (item.icon == null) {
+          return const Expanded(child: SizedBox());
+        }
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: GestureDetector(
+              onTap: item.onTap,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: isDark ? AppTheme.darkCard : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: isDark ? null : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: item.color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(item.icon, color: item.color, size: 22),
+                        ),
+                        if (item.badge > 0)
+                          Positioned(
+                            top: -4,
+                            right: -6,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: AppTheme.danger,
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                              child: Text(
+                                item.badge > 99 ? '99+' : '${item.badge}',
+                                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      item.label,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.grey.shade300 : const Color(0xFF374151),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  void _nav(BuildContext context, Widget screen) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  final String title;
-  const _SectionTitle(this.title);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(title,
-        style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: Colors.grey,
-            letterSpacing: 0.5));
-  }
-}
-
-class _MenuTile extends StatelessWidget {
-  final IconData icon;
+class _MenuItem {
+  final IconData? icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
   final int badge;
 
-  const _MenuTile({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-    this.badge = 0,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.lightCard,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Badge(
-              isLabelVisible: badge > 0,
-              label: Text('$badge'),
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-          ],
-        ),
-      ),
-    );
-  }
+  const _MenuItem(this.icon, this.label, this.color, this.onTap, {this.badge = 0});
 }

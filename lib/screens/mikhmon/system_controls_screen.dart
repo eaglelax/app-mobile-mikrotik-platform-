@@ -33,18 +33,42 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
   }
 
   Future<void> _confirmAction(String action, String title, String message) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
+        backgroundColor: isDark ? AppTheme.darkCard : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF1A1D21),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          message,
+          style: TextStyle(
+            color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+          ),
+        ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler')),
+              child: Text(
+                'Annuler',
+                style: TextStyle(
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                ),
+              )),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.danger,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
             child: const Text('Confirmer'),
           ),
         ],
@@ -77,98 +101,292 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA);
+    final cardColor = isDark ? AppTheme.darkCard : Colors.white;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF1A1D21);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: bg,
+      body: SafeArea(
+        child: Column(
           children: [
-            const Text('Système'),
-            Text(widget.site.nom,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+            // -- Custom header --
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Icon(Icons.arrow_back_ios_new_rounded,
+                        size: 20, color: textPrimary),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Système',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: textPrimary,
+                          ),
+                        ),
+                        Text(
+                          widget.site.nom,
+                          style: TextStyle(fontSize: 13, color: textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // -- Body --
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  const SizedBox(height: 8),
+                  Text(
+                    'Actions système',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Reboot action
+                  _buildActionTile(
+                    cardColor: cardColor,
+                    isDark: isDark,
+                    icon: Icons.restart_alt,
+                    iconColor: AppTheme.warning,
+                    title: 'Redémarrer le routeur',
+                    titleColor: textPrimary,
+                    subtitle: 'Les utilisateurs actifs seront déconnectés',
+                    subtitleColor: textSecondary,
+                    onTap: () => _confirmAction(
+                      'reboot',
+                      'Redémarrer le routeur ?',
+                      'Le routeur ${widget.site.nom} sera redémarré. Tous les utilisateurs actifs seront déconnectés.',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Shutdown action
+                  _buildActionTile(
+                    cardColor: cardColor,
+                    isDark: isDark,
+                    icon: Icons.power_settings_new,
+                    iconColor: AppTheme.danger,
+                    title: 'Éteindre le routeur',
+                    titleColor: AppTheme.danger,
+                    subtitle: 'Le routeur devra être rallumé manuellement',
+                    subtitleColor: textSecondary,
+                    onTap: () => _confirmAction(
+                      'shutdown',
+                      'Éteindre le routeur ?',
+                      'Le routeur ${widget.site.nom} sera arrêté. Il faudra le rallumer physiquement.',
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
+                  Text(
+                    'Planificateur (Scheduler)',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  if (_loading)
+                    const Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (_schedulers.isEmpty)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Text(
+                          'Aucune tâche planifiée',
+                          style: TextStyle(color: textSecondary),
+                        ),
+                      ),
+                    )
+                  else
+                    ..._schedulers.map((s) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _buildSchedulerTile(
+                            s,
+                            cardColor: cardColor,
+                            isDark: isDark,
+                            textPrimary: textPrimary,
+                            textSecondary: textSecondary,
+                          ),
+                        )),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
           ],
         ),
       ),
-      body: ListView(
+    );
+  }
+
+  Widget _buildActionTile({
+    required Color cardColor,
+    required bool isDark,
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required Color titleColor,
+    required String subtitle,
+    required Color subtitleColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
         padding: const EdgeInsets.all(16),
-        children: [
-          const Text('Actions système',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 12),
-
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.restart_alt, color: AppTheme.warning),
-              title: const Text('Redémarrer le routeur',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: const Text(
-                  'Les utilisateurs actifs seront déconnectés',
-                  style: TextStyle(fontSize: 12)),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => _confirmAction(
-                'reboot',
-                'Redémarrer le routeur ?',
-                'Le routeur ${widget.site.nom} sera redémarré. Tous les utilisateurs actifs seront déconnectés.',
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.power_settings_new,
-                  color: AppTheme.danger),
-              title: const Text('Éteindre le routeur',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600, color: AppTheme.danger)),
-              subtitle: const Text(
-                  'Le routeur devra être rallumé manuellement',
-                  style: TextStyle(fontSize: 12)),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => _confirmAction(
-                'shutdown',
-                'Éteindre le routeur ?',
-                'Le routeur ${widget.site.nom} sera arrêté. Il faudra le rallumer physiquement.',
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-          const Text('Planificateur (Scheduler)',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 12),
-
-          if (_loading)
-            const Center(child: CircularProgressIndicator())
-          else if (_schedulers.isEmpty)
-            const Center(
-                child: Padding(
-              padding: EdgeInsets.all(20),
-              child: Text('Aucune tâche planifiée',
-                  style: TextStyle(color: Colors.grey)),
-            ))
-          else
-            ..._schedulers.map((s) => Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: Icon(
-                      s['disabled'] == 'true'
-                          ? Icons.pause_circle_outline
-                          : Icons.schedule,
-                      color: s['disabled'] == 'true'
-                          ? Colors.grey
-                          : AppTheme.primary,
-                    ),
-                    title: Text(s['name'] ?? '',
-                        style:
-                            const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text(
-                      'Intervalle: ${s['interval'] ?? '-'}\n'
-                      'Prochaine: ${s['next-run'] ?? '-'}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    isThreeLine: true,
-                    dense: true,
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: isDark
+              ? Border.all(color: AppTheme.darkBorder, width: 1)
+              : null,
+          boxShadow: isDark
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
-                )),
+                ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: iconColor, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: titleColor,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 12, color: subtitleColor),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSchedulerTile(
+    Map<String, dynamic> s, {
+    required Color cardColor,
+    required bool isDark,
+    required Color textPrimary,
+    required Color textSecondary,
+  }) {
+    final isDisabled = s['disabled'] == 'true';
+    final statusColor = isDisabled ? Colors.grey : AppTheme.primary;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: isDark
+            ? Border.all(color: AppTheme.darkBorder, width: 1)
+            : null,
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              isDisabled ? Icons.pause_circle_outline : Icons.schedule,
+              color: statusColor,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  s['name'] ?? '',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Intervalle: ${s['interval'] ?? '-'}',
+                  style: TextStyle(fontSize: 12, color: textSecondary),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Prochaine: ${s['next-run'] ?? '-'}',
+                  style: TextStyle(fontSize: 12, color: textSecondary),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

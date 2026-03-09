@@ -4,7 +4,7 @@ import '../../services/api_client.dart';
 
 class ProfileFormScreen extends StatefulWidget {
   final int siteId;
-  final Map<String, dynamic>? profile; // null = create
+  final Map<String, dynamic>? profile;
 
   const ProfileFormScreen({super.key, required this.siteId, this.profile});
 
@@ -110,135 +110,215 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
     if (mounted) setState(() => _submitting = false);
   }
 
+  InputDecoration _inputDeco(String label, IconData icon, bool isDark, {String? hint}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      labelStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+      prefixIcon: Icon(icon, color: AppTheme.primary, size: 20),
+      filled: true,
+      fillColor: isDark ? AppTheme.darkCard : Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.primary, width: 1.5)),
+      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.danger, width: 1.5)),
+      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.danger, width: 1.5)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1D21);
+    final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final cardColor = isDark ? AppTheme.darkCard : Colors.white;
+    final shadow = isDark
+        ? <BoxShadow>[]
+        : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))];
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEdit ? 'Modifier le profil' : 'Nouveau profil'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Nom du profil',
-                  prefixIcon: Icon(Icons.wifi),
-                ),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Requis' : null,
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _priceCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Prix du ticket (FCFA)',
-                  prefixIcon: Icon(Icons.payments_outlined),
-                ),
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _rateLimitCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Débit (rate-limit)',
-                  hintText: 'Ex: 2M/2M',
-                  prefixIcon: Icon(Icons.speed),
-                ),
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _uptimeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Durée de session (limit-uptime)',
-                  hintText: 'Ex: 1h, 30m, 1d',
-                  prefixIcon: Icon(Icons.timer_outlined),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Row(
+      backgroundColor: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              child: Row(
                 children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _validityCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Validité',
-                        prefixIcon: Icon(Icons.calendar_today),
+                  IconButton(
+                    icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: textColor),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _isEdit ? 'Modifier le profil' : 'Nouveau profil',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: textColor),
+                  ),
+                ],
+              ),
+            ),
+
+            // Form
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Basic info
+                      Text('INFORMATIONS DE BASE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: subtitleColor, letterSpacing: 0.8)),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: shadow),
+                        child: Column(
+                          children: [
+                            TextFormField(
+                              controller: _nameCtrl,
+                              style: TextStyle(color: textColor),
+                              decoration: _inputDeco('Nom du profil', Icons.wifi, isDark),
+                              validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                            ),
+                            const SizedBox(height: 14),
+                            TextFormField(
+                              controller: _priceCtrl,
+                              keyboardType: TextInputType.number,
+                              style: TextStyle(color: textColor),
+                              decoration: _inputDeco('Prix du ticket (FCFA)', Icons.payments_outlined, isDark),
+                            ),
+                            const SizedBox(height: 14),
+                            TextFormField(
+                              controller: _rateLimitCtrl,
+                              style: TextStyle(color: textColor),
+                              decoration: _inputDeco('Débit (rate-limit)', Icons.speed, isDark, hint: 'Ex: 2M/2M'),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+
+                      const SizedBox(height: 20),
+
+                      // Session & Validity
+                      Text('SESSION & VALIDITÉ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: subtitleColor, letterSpacing: 0.8)),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: shadow),
+                        child: Column(
+                          children: [
+                            TextFormField(
+                              controller: _uptimeCtrl,
+                              style: TextStyle(color: textColor),
+                              decoration: _inputDeco('Durée de session (limit-uptime)', Icons.timer_outlined, isDark, hint: 'Ex: 1h, 30m, 1d'),
+                            ),
+                            const SizedBox(height: 14),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _validityCtrl,
+                                    keyboardType: TextInputType.number,
+                                    style: TextStyle(color: textColor),
+                                    decoration: _inputDeco('Validité', Icons.calendar_today, isDark),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                SizedBox(
+                                  width: 120,
+                                  child: DropdownButtonFormField<String>(
+                                    initialValue: _validityUnit,
+                                    dropdownColor: cardColor,
+                                    style: TextStyle(color: textColor, fontSize: 14),
+                                    decoration: _inputDeco('Unité', Icons.access_time, isDark),
+                                    items: const [
+                                      DropdownMenuItem(value: 'minutes', child: Text('Min')),
+                                      DropdownMenuItem(value: 'hours', child: Text('Heures')),
+                                      DropdownMenuItem(value: 'days', child: Text('Jours')),
+                                    ],
+                                    onChanged: (v) => setState(() => _validityUnit = v ?? 'days'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Advanced
+                      Text('OPTIONS AVANCÉES', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: subtitleColor, letterSpacing: 0.8)),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: shadow),
+                        child: Column(
+                          children: [
+                            TextFormField(
+                              controller: _sharedCtrl,
+                              keyboardType: TextInputType.number,
+                              style: TextStyle(color: textColor),
+                              decoration: _inputDeco('Utilisateurs partagés', Icons.group, isDark),
+                            ),
+                            const SizedBox(height: 14),
+                            DropdownButtonFormField<String>(
+                              initialValue: _expiredMode,
+                              dropdownColor: cardColor,
+                              style: TextStyle(color: textColor, fontSize: 14),
+                              decoration: _inputDeco('Mode expiration', Icons.timelapse, isDark),
+                              items: const [
+                                DropdownMenuItem(value: 'remove_record', child: Text('Supprimer')),
+                                DropdownMenuItem(value: 'notice_only', child: Text('Notifier seulement')),
+                              ],
+                              onChanged: (v) => setState(() => _expiredMode = v ?? 'remove_record'),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 28),
+
+                      // Submit
+                      SizedBox(
+                        height: 54,
+                        child: ElevatedButton(
+                          onPressed: _submitting ? null : _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          child: _submitting
+                              ? const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                                    SizedBox(width: 10),
+                                    Text('Enregistrement...', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                                  ],
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(_isEdit ? Icons.save : Icons.add, size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(_isEdit ? 'Enregistrer' : 'Créer le profil', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  SizedBox(
-                    width: 120,
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _validityUnit,
-                      decoration: const InputDecoration(labelText: 'Unité'),
-                      items: const [
-                        DropdownMenuItem(value: 'minutes', child: Text('Min')),
-                        DropdownMenuItem(value: 'hours', child: Text('Heures')),
-                        DropdownMenuItem(value: 'days', child: Text('Jours')),
-                      ],
-                      onChanged: (v) =>
-                          setState(() => _validityUnit = v ?? 'days'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _sharedCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Utilisateurs partagés',
-                  prefixIcon: Icon(Icons.group),
                 ),
               ),
-              const SizedBox(height: 14),
-              DropdownButtonFormField<String>(
-                initialValue: _expiredMode,
-                decoration: const InputDecoration(
-                  labelText: 'Mode expiration',
-                  prefixIcon: Icon(Icons.timelapse),
-                ),
-                items: const [
-                  DropdownMenuItem(
-                      value: 'remove_record', child: Text('Supprimer')),
-                  DropdownMenuItem(
-                      value: 'notice_only', child: Text('Notifier seulement')),
-                ],
-                onChanged: (v) =>
-                    setState(() => _expiredMode = v ?? 'remove_record'),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                height: 48,
-                child: ElevatedButton.icon(
-                  onPressed: _submitting ? null : _submit,
-                  icon: _submitting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : Icon(_isEdit ? Icons.save : Icons.add),
-                  label: Text(_submitting
-                      ? 'Enregistrement...'
-                      : (_isEdit ? 'Enregistrer' : 'Créer le profil')),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

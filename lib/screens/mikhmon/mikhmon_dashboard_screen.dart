@@ -58,169 +58,209 @@ class _MikhmonDashboardScreenState extends State<MikhmonDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1D21);
+    final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final cardColor = isDark ? AppTheme.darkCard : Colors.white;
+    final shadow = isDark
+        ? <BoxShadow>[]
+        : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))];
     final site = widget.site;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
+      body: SafeArea(
+        child: Column(
           children: [
-            const Text('Mikhmon'),
-            Text(site.nom,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-          ],
-        ),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              child: Row(
                 children: [
-                  // Stats
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 1.15,
-                    children: [
-                      StatCard(
-                        title: 'Utilisateurs Actifs',
-                        value: '${_stats?['active_users'] ?? 0}',
-                        icon: Icons.person,
-                        color: AppTheme.primary,
-                        onTap: () => _push(HotspotActiveScreen(site: site)),
-                      ),
-                      StatCard(
-                        title: 'Total Vouchers',
-                        value: '${_stats?['total_vouchers'] ?? 0}',
-                        icon: Icons.confirmation_number,
-                        color: AppTheme.accent,
-                        onTap: () => _push(HotspotUsersScreen(site: site)),
-                      ),
-                      StatCard(
-                        title: 'Stock Disponible',
-                        value: '${_stats?['unsold_vouchers'] ?? 0}',
-                        icon: Icons.inventory_2_outlined,
-                        color: AppTheme.warning,
-                      ),
-                      StatCard(
-                        title: 'Revenu',
-                        value: Fmt.currency(_stats?['revenue'] ?? 0),
-                        icon: Icons.payments_outlined,
-                        color: AppTheme.success,
-                      ),
-                    ],
+                  IconButton(
+                    icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: textColor),
+                    onPressed: () => Navigator.pop(context),
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // Quick Actions
-                  const Text('Actions Rapides',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 12),
-                  _QuickAction(
-                    icon: Icons.person_add,
-                    label: 'Ajouter un utilisateur',
-                    subtitle: 'Créer un compte hotspot manuellement',
-                    color: AppTheme.success,
-                    onTap: () => _push(HotspotUserAddScreen(site: site)),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Mikhmon', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: textColor)),
+                        Text(site.nom, style: TextStyle(fontSize: 13, color: subtitleColor)),
+                      ],
+                    ),
                   ),
-                  _QuickAction(
-                    icon: Icons.bolt,
-                    label: 'Vente Flash',
-                    subtitle: 'Générer un voucher en 1 clic',
-                    color: AppTheme.accent,
-                    onTap: () => _push(FlashSaleScreen(site: site)),
-                  ),
-                  _QuickAction(
-                    icon: Icons.print,
-                    label: 'Quick Print',
-                    subtitle: 'Imprimer des tickets rapidement',
-                    color: AppTheme.primary,
-                    onTap: () => _push(QuickPrintScreen(site: site)),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Menu
-                  const Text('Hotspot',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 10),
-                  _MenuItem(
-                    icon: Icons.people,
-                    label: 'Utilisateurs Hotspot',
-                    onTap: () => _push(HotspotUsersScreen(site: site)),
-                  ),
-                  _MenuItem(
-                    icon: Icons.wifi_tethering,
-                    label: 'Connexions Actives',
-                    onTap: () => _push(HotspotActiveScreen(site: site)),
-                  ),
-                  _MenuItem(
-                    icon: Icons.dns,
-                    label: 'Serveurs Hotspot',
-                    onTap: () => _push(HotspotServersScreen(site: site)),
-                  ),
-                  _MenuItem(
-                    icon: Icons.cable,
-                    label: 'DHCP Leases',
-                    onTap: () => _push(DhcpLeasesScreen(site: site)),
-                  ),
-                  _MenuItem(
-                    icon: Icons.bar_chart,
-                    label: 'Trafic',
-                    onTap: () => _push(TrafficScreen(site: site)),
-                  ),
-                  _MenuItem(
-                    icon: Icons.cookie_outlined,
-                    label: 'Cookies Hotspot',
-                    onTap: () => _push(HotspotCookiesScreen(site: site)),
-                  ),
-                  _MenuItem(
-                    icon: Icons.lan_outlined,
-                    label: 'IP Bindings',
-                    onTap: () => _push(IpBindingsScreen(site: site)),
-                  ),
-                  _MenuItem(
-                    icon: Icons.article_outlined,
-                    label: 'Logs',
-                    onTap: () => _push(LogsScreen(site: site)),
-                  ),
-
-                  _MenuItem(
-                    icon: Icons.assessment_outlined,
-                    label: 'Rapport Mikhmon',
-                    onTap: () => _push(MikhmonReportScreen(site: site)),
-                  ),
-
-                  const SizedBox(height: 16),
-                  const Text('Système',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 10),
-                  _MenuItem(
-                    icon: Icons.settings,
-                    label: 'Contrôles Système',
-                    onTap: () => _push(SystemControlsScreen(site: site)),
-                  ),
-                  _MenuItem(
-                    icon: Icons.restart_alt,
-                    label: 'Redémarrer le Routeur',
-                    color: AppTheme.danger,
-                    onTap: () => _confirmReboot(),
-                  ),
+                  IconButton(icon: Icon(Icons.refresh_rounded, color: textColor), onPressed: _load),
                 ],
               ),
             ),
+
+            // Body
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          // Stats
+                          GridView.count(
+                            crossAxisCount: 2,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                            childAspectRatio: 1.15,
+                            children: [
+                              StatCard(
+                                title: 'Utilisateurs Actifs',
+                                value: '${_stats?['active_users'] ?? 0}',
+                                icon: Icons.person,
+                                color: AppTheme.primary,
+                                onTap: () => _push(HotspotActiveScreen(site: site)),
+                              ),
+                              StatCard(
+                                title: 'Total Vouchers',
+                                value: '${_stats?['total_vouchers'] ?? 0}',
+                                icon: Icons.confirmation_number,
+                                color: AppTheme.accent,
+                                onTap: () => _push(HotspotUsersScreen(site: site)),
+                              ),
+                              StatCard(
+                                title: 'Stock Disponible',
+                                value: '${_stats?['unsold_vouchers'] ?? 0}',
+                                icon: Icons.inventory_2_outlined,
+                                color: AppTheme.warning,
+                              ),
+                              StatCard(
+                                title: 'Revenu',
+                                value: Fmt.currency(_stats?['revenue'] ?? 0),
+                                icon: Icons.payments_outlined,
+                                color: AppTheme.success,
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Quick Actions
+                          Text('Actions Rapides', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textColor)),
+                          const SizedBox(height: 12),
+                          _buildQuickAction(Icons.person_add, 'Ajouter un utilisateur', 'Créer un compte hotspot manuellement', AppTheme.success, () => _push(HotspotUserAddScreen(site: site)), isDark, cardColor, textColor, subtitleColor, shadow),
+                          _buildQuickAction(Icons.bolt, 'Vente Flash', 'Générer un voucher en 1 clic', AppTheme.accent, () => _push(FlashSaleScreen(site: site)), isDark, cardColor, textColor, subtitleColor, shadow),
+                          _buildQuickAction(Icons.print, 'Quick Print', 'Imprimer des tickets rapidement', AppTheme.primary, () => _push(QuickPrintScreen(site: site)), isDark, cardColor, textColor, subtitleColor, shadow),
+
+                          const SizedBox(height: 20),
+
+                          // Hotspot menu group
+                          Text('Hotspot', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textColor)),
+                          const SizedBox(height: 10),
+                          Container(
+                            decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: shadow),
+                            child: Column(
+                              children: [
+                                _buildMenuRow(Icons.people, 'Utilisateurs Hotspot', AppTheme.primary, () => _push(HotspotUsersScreen(site: site)), textColor),
+                                Divider(height: 1, indent: 56, color: Colors.grey.shade200),
+                                _buildMenuRow(Icons.wifi_tethering, 'Connexions Actives', AppTheme.primary, () => _push(HotspotActiveScreen(site: site)), textColor),
+                                Divider(height: 1, indent: 56, color: Colors.grey.shade200),
+                                _buildMenuRow(Icons.dns, 'Serveurs Hotspot', AppTheme.primary, () => _push(HotspotServersScreen(site: site)), textColor),
+                                Divider(height: 1, indent: 56, color: Colors.grey.shade200),
+                                _buildMenuRow(Icons.cable, 'DHCP Leases', AppTheme.primary, () => _push(DhcpLeasesScreen(site: site)), textColor),
+                                Divider(height: 1, indent: 56, color: Colors.grey.shade200),
+                                _buildMenuRow(Icons.bar_chart, 'Trafic', AppTheme.primary, () => _push(TrafficScreen(site: site)), textColor),
+                                Divider(height: 1, indent: 56, color: Colors.grey.shade200),
+                                _buildMenuRow(Icons.cookie_outlined, 'Cookies Hotspot', AppTheme.primary, () => _push(HotspotCookiesScreen(site: site)), textColor),
+                                Divider(height: 1, indent: 56, color: Colors.grey.shade200),
+                                _buildMenuRow(Icons.lan_outlined, 'IP Bindings', AppTheme.primary, () => _push(IpBindingsScreen(site: site)), textColor),
+                                Divider(height: 1, indent: 56, color: Colors.grey.shade200),
+                                _buildMenuRow(Icons.article_outlined, 'Logs', AppTheme.primary, () => _push(LogsScreen(site: site)), textColor),
+                                Divider(height: 1, indent: 56, color: Colors.grey.shade200),
+                                _buildMenuRow(Icons.assessment_outlined, 'Rapport Mikhmon', AppTheme.primary, () => _push(MikhmonReportScreen(site: site)), textColor),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // System menu group
+                          Text('Système', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textColor)),
+                          const SizedBox(height: 10),
+                          Container(
+                            decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: shadow),
+                            child: Column(
+                              children: [
+                                _buildMenuRow(Icons.settings, 'Contrôles Système', AppTheme.primary, () => _push(SystemControlsScreen(site: site)), textColor),
+                                Divider(height: 1, indent: 56, color: Colors.grey.shade200),
+                                _buildMenuRow(Icons.restart_alt, 'Redémarrer le Routeur', AppTheme.danger, () => _confirmReboot(), textColor),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickAction(IconData icon, String label, String subtitle, Color color, VoidCallback onTap, bool isDark, Color cardColor, Color textColor, Color subtitleColor, List<BoxShadow> shadow) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: shadow),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: textColor)),
+                    Text(subtitle, style: TextStyle(color: subtitleColor, fontSize: 13)),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: subtitleColor),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuRow(IconData icon, String label, Color color, VoidCallback onTap, Color textColor) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(label, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: color == AppTheme.danger ? color : textColor))),
+            Icon(Icons.chevron_right, size: 18, color: Colors.grey.shade400),
+          ],
+        ),
+      ),
     );
   }
 
@@ -263,94 +303,5 @@ class _MikhmonDashboardScreenState extends State<MikhmonDashboardScreen> {
         }
       }
     }
-  }
-}
-
-class _QuickAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _QuickAction({
-    required this.icon,
-    required this.label,
-    required this.subtitle,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15)),
-                    Text(subtitle,
-                        style: TextStyle(
-                            color: Colors.grey.shade500, fontSize: 13)),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: Colors.grey.shade600),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MenuItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color? color;
-  final VoidCallback onTap;
-
-  const _MenuItem({
-    required this.icon,
-    required this.label,
-    this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 6),
-      child: ListTile(
-        leading: Icon(icon, color: color ?? AppTheme.primary, size: 22),
-        title: Text(label,
-            style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: color)),
-        trailing: const Icon(Icons.chevron_right, size: 20),
-        onTap: onTap,
-        dense: true,
-      ),
-    );
   }
 }

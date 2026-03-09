@@ -213,6 +213,79 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
     }
   }
 
+  // -- UI Helpers --
+
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+
+  Color get _bg => _isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA);
+  Color get _cardColor => _isDark ? AppTheme.darkCard : Colors.white;
+  Color get _fieldFill => _isDark ? AppTheme.darkCard : Colors.white;
+  Color get _textPrimary => _isDark ? Colors.white : Colors.black87;
+  Color get _textSecondary =>
+      _isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: _textSecondary, fontSize: 14),
+      filled: true,
+      fillColor: _fieldFill,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+      ),
+    );
+  }
+
+  BoxDecoration get _containerDecoration => BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: (_isDark ? Colors.black : Colors.black12)
+                .withValues(alpha: _isDark ? 0.3 : 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      );
+
+  Widget _buildHeader(String title, {VoidCallback? onBack}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 16, 8),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(Icons.arrow_back_ios_new_rounded,
+                color: _textPrimary, size: 22),
+            onPressed: onBack ?? () => Navigator.pop(context),
+            splashRadius: 22,
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: _textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_generatedTickets != null) return _buildResultScreen();
@@ -221,203 +294,316 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
 
   Widget _buildFormScreen() {
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
+      backgroundColor: _bg,
+      body: SafeArea(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Générer des tickets'),
-            Text(widget.site.nom,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+            _buildHeader('Générer des tickets'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                widget.site.nom,
+                style: TextStyle(fontSize: 13, color: _textSecondary),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: _loadingProfiles
+                  ? const Center(child: CircularProgressIndicator())
+                  : _profiles.isEmpty
+                      ? Center(
+                          child: Text(
+                            'Aucun profil disponible',
+                            style: TextStyle(color: _textSecondary),
+                          ),
+                        )
+                      : SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                          child: Container(
+                            decoration: _containerDecoration,
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  'Configuration',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: _textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                DropdownButtonFormField<String>(
+                                  value: _selectedProfile,
+                                  decoration: _inputDecoration('Profil'),
+                                  dropdownColor: _cardColor,
+                                  borderRadius: BorderRadius.circular(14),
+                                  style: TextStyle(
+                                      color: _textPrimary, fontSize: 15),
+                                  items: _profiles.map((p) {
+                                    final name =
+                                        (p['name'] ?? '') as String;
+                                    final price = p['ticket_price'];
+                                    final label = price != null
+                                        ? '$name ($price FCFA)'
+                                        : name;
+                                    return DropdownMenuItem<String>(
+                                      value: name,
+                                      child: Text(label),
+                                    );
+                                  }).toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedProfile = v),
+                                ),
+                                const SizedBox(height: 16),
+                                TextFormField(
+                                  controller: _qtyController,
+                                  keyboardType: TextInputType.number,
+                                  style: TextStyle(
+                                      color: _textPrimary, fontSize: 15),
+                                  decoration:
+                                      _inputDecoration('Quantité (1-200)'),
+                                ),
+                                const SizedBox(height: 28),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 52,
+                                  child: ElevatedButton.icon(
+                                    onPressed:
+                                        _generating ? null : _generate,
+                                    icon: _generating
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child:
+                                                CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                    color: Colors.white),
+                                          )
+                                        : const Icon(Icons.bolt,
+                                            color: Colors.white),
+                                    label: Text(
+                                      _generating
+                                          ? 'Génération...'
+                                          : 'Générer',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.primary,
+                                      disabledBackgroundColor: AppTheme
+                                          .primary
+                                          .withValues(alpha: 0.5),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(16),
+                                      ),
+                                      elevation: 0,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+            ),
           ],
         ),
       ),
-      body: _loadingProfiles
-          ? const Center(child: CircularProgressIndicator())
-          : _profiles.isEmpty
-              ? const Center(child: Text('Aucun profil disponible'))
-              : Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedProfile,
-                        decoration: const InputDecoration(
-                          labelText: 'Profil',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: _profiles.map((p) {
-                          final name = (p['name'] ?? '') as String;
-                          final price = p['ticket_price'];
-                          final label =
-                              price != null ? '$name ($price FCFA)' : name;
-                          return DropdownMenuItem<String>(
-                            value: name,
-                            child: Text(label),
-                          );
-                        }).toList(),
-                        onChanged: (v) =>
-                            setState(() => _selectedProfile = v),
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _qtyController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Quantité (1-200)',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      FilledButton.icon(
-                        onPressed: _generating ? null : _generate,
-                        icon: _generating
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(Icons.bolt),
-                        label: Text(
-                            _generating ? 'Génération...' : 'Générer'),
-                      ),
-                    ],
-                  ),
-                ),
     );
   }
 
   Widget _buildResultScreen() {
     final tickets = _generatedTickets!;
-    final profile = tickets.isNotEmpty ? tickets[0]['profile'] ?? '' : '';
+    final profile =
+        tickets.isNotEmpty ? tickets[0]['profile'] ?? '' : '';
     final price = tickets.isNotEmpty ? tickets[0]['price'] : null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tickets générés'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.pop(context, true),
-        ),
-      ),
-      body: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: AppTheme.success.withValues(alpha: 0.1),
-            child: Row(
-              children: [
-                const Icon(Icons.check_circle, color: AppTheme.success),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    '${tickets.length} ticket(s) générés, $_synced synchronisés',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
+      backgroundColor: _bg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(
+              'Tickets générés',
+              onBack: () => Navigator.pop(context, true),
             ),
-          ),
-          if (profile.isNotEmpty)
+            const SizedBox(height: 4),
+
+            // Success banner
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.success
+                      .withValues(alpha: _isDark ? 0.15 : 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle,
+                        color: AppTheme.success),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '${tickets.length} ticket(s) générés, $_synced synchronisés',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: _textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            if (profile.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 10),
+                child: Row(
+                  children: [
+                    Text('Profil: $profile',
+                        style: TextStyle(
+                            color: _textSecondary, fontSize: 13)),
+                    if (price != null) ...[
+                      const Spacer(),
+                      Text('$price FCFA',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: _textPrimary)),
+                    ],
+                  ],
+                ),
+              ),
+
+            // Action buttons
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 20, vertical: 8),
               child: Row(
                 children: [
-                  Text('Profil: $profile',
-                      style:
-                          TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-                  if (price != null) ...[
-                    const Spacer(),
-                    Text('$price FCFA',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 13)),
-                  ],
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: OutlinedButton.icon(
+                        onPressed: _sharePdf,
+                        icon: const Icon(Icons.share, size: 20),
+                        label: const Text('Partager PDF'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primary,
+                          side: BorderSide(
+                            color: AppTheme.primary
+                                .withValues(alpha: 0.4),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          try {
+                            final file = await _generatePdf();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'PDF sauvegardé: ${file.path.split('/').last}'),
+                                  backgroundColor: AppTheme.success,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Erreur: $e')),
+                              );
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.picture_as_pdf,
+                            size: 20, color: Colors.white),
+                        label: const Text(
+                          'Télécharger',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _sharePdf,
-                    icon: const Icon(Icons.share, size: 20),
-                    label: const Text('Partager PDF'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+
+            const SizedBox(height: 4),
+
+            // Ticket list
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                itemCount: tickets.length,
+                itemBuilder: (ctx, i) {
+                  final t = tickets[i];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: _containerDecoration,
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 4),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      leading: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: AppTheme.primary
+                            .withValues(alpha: _isDark ? 0.25 : 0.12),
+                        child: Text('${i + 1}',
+                            style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primary)),
+                      ),
+                      title: Text(t['code'] ?? '',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                              letterSpacing: 1.5,
+                              color: _textPrimary)),
+                      subtitle: Text(
+                          'Mot de passe: ${t['password'] ?? t['code']}',
+                          style: TextStyle(
+                              fontSize: 12, color: _textSecondary)),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () async {
-                      try {
-                        final file = await _generatePdf();
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                  'PDF sauvegardé: ${file.path.split('/').last}'),
-                              backgroundColor: AppTheme.success,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Erreur: $e')),
-                          );
-                        }
-                      }
-                    },
-                    icon: const Icon(Icons.picture_as_pdf, size: 20),
-                    label: const Text('Télécharger'),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
+                  );
+                },
+              ),
             ),
-          ),
-          const Divider(),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(8),
-              itemCount: tickets.length,
-              itemBuilder: (ctx, i) {
-                final t = tickets[i];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 4),
-                  child: ListTile(
-                    dense: true,
-                    leading: CircleAvatar(
-                      radius: 16,
-                      backgroundColor:
-                          AppTheme.primary.withValues(alpha: 0.15),
-                      child: Text('${i + 1}',
-                          style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primary)),
-                    ),
-                    title: Text(t['code'] ?? '',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                            letterSpacing: 1.5)),
-                    subtitle: Text(
-                        'Mot de passe: ${t['password'] ?? t['code']}',
-                        style: const TextStyle(fontSize: 12)),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
