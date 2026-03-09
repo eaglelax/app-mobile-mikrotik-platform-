@@ -24,11 +24,32 @@ class _ReportsScreenState extends State<ReportsScreen> {
     _load();
   }
 
+  Map<String, String> _dateRange() {
+    final now = DateTime.now();
+    final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    String dateFrom;
+    switch (_period) {
+      case 'today':
+        dateFrom = today;
+      case 'week':
+        final d = now.subtract(const Duration(days: 7));
+        dateFrom = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      case 'month':
+        dateFrom = '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
+      case 'year':
+        dateFrom = '${now.year}-01-01';
+      default:
+        dateFrom = today;
+    }
+    return {'date_from': dateFrom, 'date_to': today};
+  }
+
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
+      final range = _dateRange();
       final results = await Future.wait([
-        _kpi.fetchRevenue(period: _period),
+        _kpi.fetchRevenue(period: _period, dateFrom: range['date_from']!, dateTo: range['date_to']!),
         _kpi.fetchSalesMix(),
         _kpi.fetchTopVendors(),
       ]);
