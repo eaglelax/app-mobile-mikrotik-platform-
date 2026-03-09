@@ -4,6 +4,7 @@ import '../../models/point.dart';
 import '../../models/site.dart';
 import '../../services/point_service_api.dart';
 import '../../widgets/site_selector.dart';
+import 'gerants_screen.dart';
 import 'point_form_screen.dart';
 
 class PointsListScreen extends StatefulWidget {
@@ -167,25 +168,44 @@ class _PointsListScreenState extends State<PointsListScreen> {
                                     style: const TextStyle(fontSize: 12)),
                             ],
                           ),
-                          trailing: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: (p.isActive
-                                      ? AppTheme.success
-                                      : Colors.grey)
-                                  .withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              p.isActive ? 'Actif' : 'Inactif',
-                              style: TextStyle(
-                                  color: p.isActive
-                                      ? AppTheme.success
-                                      : Colors.grey,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600),
-                            ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: (p.isActive
+                                          ? AppTheme.success
+                                          : Colors.grey)
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  p.isActive ? 'Actif' : 'Inactif',
+                                  style: TextStyle(
+                                      color: p.isActive
+                                          ? AppTheme.success
+                                          : Colors.grey,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              IconButton(
+                                icon: const Icon(Icons.person,
+                                    size: 20, color: AppTheme.accent),
+                                tooltip: 'Gerants',
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => GerantsScreen(point: p),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
                           ),
                         ),
                       );

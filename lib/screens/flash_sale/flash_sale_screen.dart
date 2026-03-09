@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../config/api_config.dart';
 import '../../config/theme.dart';
 import '../../models/site.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/site_provider.dart';
 import '../../services/api_client.dart';
 import '../../utils/formatters.dart';
@@ -25,6 +26,27 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
   bool _generating = false;
   Map<String, dynamic>? _result;
   String? _error;
+  bool _autoLoaded = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_autoLoaded) {
+      _autoLoaded = true;
+      _tryAutoSelectSite();
+    }
+  }
+
+  void _tryAutoSelectSite() {
+    final auth = context.read<AuthProvider>();
+    if (auth.user?.isGerant == true && auth.user!.siteId != null) {
+      final sites = context.read<SiteProvider>().sites;
+      final match = sites.where((s) => s.id == auth.user!.siteId).toList();
+      if (match.isNotEmpty) {
+        _loadProfiles(match.first);
+      }
+    }
+  }
 
   Future<void> _loadProfiles(Site site) async {
     setState(() {
@@ -43,7 +65,17 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
         setState(() {
           _profiles = list.map((p) => Map<String, dynamic>.from(p)).toList();
           _points = pts.map((p) => Map<String, dynamic>.from(p)).toList();
-          _selectedPointId = _points.isNotEmpty ? (_points.first['id'] is int ? _points.first['id'] : int.tryParse(_points.first['id'].toString())) : null;
+          // Auto-select gerant's point if applicable
+          final auth = context.read<AuthProvider>();
+          final gerantPointId = auth.user?.pointId;
+          if (gerantPointId != null && _points.any((p) {
+            final id = p['id'] is int ? p['id'] : int.tryParse(p['id'].toString());
+            return id == gerantPointId;
+          })) {
+            _selectedPointId = gerantPointId;
+          } else {
+            _selectedPointId = _points.isNotEmpty ? (_points.first['id'] is int ? _points.first['id'] : int.tryParse(_points.first['id'].toString())) : null;
+          }
         });
       } else {
         setState(() => _error = data['error'] ?? 'Erreur inconnue');
