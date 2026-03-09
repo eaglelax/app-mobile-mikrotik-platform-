@@ -6,6 +6,8 @@ class User {
   final String status;
   final DateTime? lastLogin;
   final Map<String, dynamic>? features;
+  final int? pointId;
+  final int? siteId;
 
   User({
     required this.id,
@@ -15,9 +17,12 @@ class User {
     this.status = 'active',
     this.lastLogin,
     this.features,
+    this.pointId,
+    this.siteId,
   });
 
   bool get isAdmin => role == 'admin';
+  bool get isGerant => role == 'gerant';
 
   bool hasFeature(String feature) {
     if (isAdmin) return true;
@@ -42,6 +47,8 @@ class User {
             ? DateTime.tryParse(json['last_login'])
             : null,
         features: json['features'],
+        pointId: json['point_id'] != null ? (json['point_id'] is int ? json['point_id'] : int.tryParse(json['point_id'].toString())) : null,
+        siteId: json['site_id'] != null ? (json['site_id'] is int ? json['site_id'] : int.tryParse(json['site_id'].toString())) : null,
       );
 
   Map<String, dynamic> toJson() => {
@@ -52,5 +59,7 @@ class User {
         'status': status,
         if (lastLogin != null) 'last_login': lastLogin!.toIso8601String(),
         if (features != null) 'features': features,
+        if (pointId != null) 'point_id': pointId,
+        if (siteId != null) 'site_id': siteId,
       };
 }

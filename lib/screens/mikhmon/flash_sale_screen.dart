@@ -4,7 +4,6 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../config/theme.dart';
 import '../../models/site.dart';
 import '../../services/api_client.dart';
-import '../../services/mikhmon_service.dart';
 import '../../utils/formatters.dart';
 
 class FlashSaleScreen extends StatefulWidget {
@@ -16,7 +15,6 @@ class FlashSaleScreen extends StatefulWidget {
 }
 
 class _FlashSaleScreenState extends State<FlashSaleScreen> {
-  final _service = MikhmonService();
   List<Map<String, dynamic>> _profiles = [];
   List<Map<String, dynamic>> _points = [];
   int? _selectedPointId;
@@ -268,7 +266,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               child: DropdownButtonFormField<int>(
-                value: _selectedPointId,
+                initialValue: _selectedPointId,
                 decoration: InputDecoration(
                   labelText: 'Point de vente',
                   prefixIcon: Icon(Icons.storefront_rounded,

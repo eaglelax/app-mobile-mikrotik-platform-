@@ -48,6 +48,9 @@ class ApiConfig {
   static const String kpiTopSites = '/api/kpi/top-sites.php';
   static const String kpiTopVendors = '/api/kpi/top-vendors.php';
 
+  // Gerants
+  static const String gerants = '/api/gerants.php';
+
   // Health
   static const String healthRouters = '/api/health/routers.php';
   static const String healthVpn = '/api/health/vpn.php';

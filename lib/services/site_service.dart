@@ -18,11 +18,19 @@ class SiteService {
 
   Future<Map<String, dynamic>> testConnection(int siteId) async {
     return await _api
-        .post('/api/router-test.php', {'site_id': siteId});
+        .post('/api/router-test.php', {'action': 'test_site', 'site_id': siteId});
   }
 
   Future<Map<String, dynamic>> createSite(Map<String, dynamic> data) async {
     return await _api.post('/api/sites-list.php', data);
+  }
+
+  Future<Map<String, dynamic>> updateSite(int siteId, Map<String, dynamic> fields) async {
+    return await _api.post('/api/sites-list.php', {
+      'action': 'update',
+      'site_id': siteId,
+      ...fields,
+    });
   }
 
   Future<Map<String, dynamic>> deleteSite(int siteId) async {
