@@ -33,41 +33,201 @@ class _DhcpLeasesScreenState extends State<DhcpLeasesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA);
+    final cardColor = isDark ? AppTheme.darkCard : Colors.white;
+    final titleColor = isDark ? Colors.white : const Color(0xFF1A1D21);
+    final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade500;
+    final borderColor = isDark ? AppTheme.darkBorder : const Color(0xFFE8EAF0);
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text('DHCP Leases (${_hosts.length})'),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _hosts.isEmpty
-              ? const Center(child: Text('Aucun bail DHCP'))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(8),
-                  itemCount: _hosts.length,
-                  itemBuilder: (ctx, i) {
-                    final h = _hosts[i];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 4),
-                      child: ListTile(
-                        leading: const Icon(Icons.devices,
-                            color: AppTheme.info, size: 22),
-                        title: Text(
-                            h['host-name'] ?? h['mac-address'] ?? '',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600, fontSize: 13)),
-                        subtitle: Text(
-                            'IP: ${h['address'] ?? '-'}  MAC: ${h['mac-address'] ?? '-'}',
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade500)),
-                        dense: true,
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Custom header ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: cardColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: borderColor, width: 0.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                ),
+                      child: Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        size: 20,
+                        color: titleColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      'DHCP Leases',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: titleColor,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppTheme.info.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${_hosts.length}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.info,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Content ──
+            Expanded(
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppTheme.info,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : _hosts.isEmpty
+                      ? RefreshIndicator(
+                          onRefresh: _load,
+                          color: AppTheme.info,
+                          child: ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              SizedBox(
+                                height: MediaQuery.of(context).size.height * 0.5,
+                                child: Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.devices_other_rounded,
+                                        size: 48,
+                                        color: subtitleColor.withValues(alpha: 0.5),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'Aucun bail DHCP',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                          color: subtitleColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _load,
+                          color: AppTheme.info,
+                          child: ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                            itemCount: _hosts.length,
+                            itemBuilder: (ctx, i) {
+                              final h = _hosts[i];
+                              final hostName = h['host-name'] ?? h['mac-address'] ?? '';
+                              final address = h['address'] ?? '-';
+                              final mac = h['mac-address'] ?? '-';
+
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: cardColor,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: borderColor, width: 0.5),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.04),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.info.withValues(alpha: 0.10),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Icon(
+                                        Icons.devices,
+                                        color: AppTheme.info,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            hostName,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 13.5,
+                                              color: titleColor,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'IP: $address  MAC: $mac',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: subtitleColor,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

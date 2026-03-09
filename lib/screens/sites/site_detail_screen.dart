@@ -83,9 +83,12 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
   }
 
   Future<void> _deleteSite() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? AppTheme.darkCard : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Supprimer ce site ?'),
         content: Text(
             'Le site "${widget.site.nom}" et toutes ses données seront supprimés. Cette action est irréversible.'),
@@ -118,7 +121,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
+          SnackBar(
+              content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
         );
       }
     }
@@ -127,145 +131,331 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final site = widget.site;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1D21);
+    final subtextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final containerColor = isDark ? AppTheme.darkCard : Colors.white;
+    final borderColor = isDark ? AppTheme.darkBorder : const Color(0xFFE8EAF0);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(site.nom),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.wifi_outlined),
-            tooltip: 'Mikhmon',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => MikhmonDashboardScreen(site: site)),
-            ),
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadStats,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
+      backgroundColor: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Custom header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 16, 4),
+              child: Row(
                 children: [
-                  // Site info card
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          _InfoRow('IP Routeur', site.routerIp),
-                          _InfoRow('Port', '${site.routerPort}'),
-                          _InfoRow('Utilisateur', site.routerUser),
-                          _InfoRow('Status', site.status),
-                          if (site.typeActivite != null)
-                            _InfoRow('Activité', site.typeActivite!),
-                          _InfoRow('Devise', site.currency),
-                        ],
-                      ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: textColor,
+                      size: 20,
+                    ),
+                    splashRadius: 22,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Detail du site',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: textColor,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          site.nom,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: subtextColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
-
-                  const SizedBox(height: 16),
-
-                  // Stats
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 1.15,
-                    children: [
-                      StatCard(
-                        title: 'Revenu Aujourd\'hui',
-                        value: Fmt.currency(
-                            _stats?['today_revenue'] ?? 0),
-                        icon: Icons.payments_outlined,
-                        color: AppTheme.success,
-                      ),
-                      StatCard(
-                        title: 'Utilisateurs Actifs',
-                        value: '${_stats?['active_users'] ?? 0}',
-                        icon: Icons.person,
-                        color: AppTheme.primary,
-                      ),
-                      StatCard(
-                        title: 'Vouchers Stock',
-                        value: '${_stats?['unsold_vouchers'] ?? 0}',
-                        icon: Icons.inventory_2_outlined,
-                        color: AppTheme.warning,
-                      ),
-                      StatCard(
-                        title: 'Ventes Aujourd\'hui',
-                        value: '${_stats?['today_sales'] ?? 0}',
-                        icon: Icons.receipt_long,
-                        color: AppTheme.info,
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Actions
-                  const Text('Actions',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 10),
-                  _ActionButton(
-                    icon: Icons.speed,
-                    label: 'Tester la connexion',
-                    subtitle: _testResult,
-                    loading: _testing,
-                    onTap: _testConnection,
-                  ),
-                  _ActionButton(
-                    icon: Icons.sync,
-                    label: 'Synchroniser les ventes',
-                    onTap: _syncSales,
-                  ),
-                  _ActionButton(
-                    icon: Icons.assessment,
-                    label: 'Rapport du site',
+                  _HeaderIconButton(
+                    icon: Icons.wifi_outlined,
+                    tooltip: 'Mikhmon',
+                    isDark: isDark,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => SiteReportScreen(site: site)),
-                    ),
-                  ),
-                  _ActionButton(
-                    icon: Icons.wifi,
-                    label: 'Ouvrir Mikhmon',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              MikhmonDashboardScreen(site: site)),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _deleteSite,
-                      icon: const Icon(Icons.delete_outline,
-                          color: AppTheme.danger),
-                      label: const Text('Supprimer ce site',
-                          style: TextStyle(color: AppTheme.danger)),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppTheme.danger),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
+                          builder: (_) => MikhmonDashboardScreen(site: site)),
                     ),
                   ),
                 ],
               ),
             ),
+
+            // Body
+            Expanded(
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppTheme.primary,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : RefreshIndicator(
+                      color: AppTheme.primary,
+                      onRefresh: _loadStats,
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                        children: [
+                          // Site info container
+                          Container(
+                            decoration: BoxDecoration(
+                              color: containerColor,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: borderColor, width: 0.5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isDark
+                                      ? Colors.black.withValues(alpha: 0.2)
+                                      : Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.all(18),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primary
+                                            .withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.router_outlined,
+                                        color: AppTheme.primary,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Informations',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                Divider(
+                                  color: borderColor,
+                                  height: 1,
+                                ),
+                                const SizedBox(height: 10),
+                                _InfoRow('IP Routeur', site.routerIp,
+                                    isDark: isDark),
+                                _InfoRow('Port', '${site.routerPort}',
+                                    isDark: isDark),
+                                _InfoRow('Utilisateur', site.routerUser,
+                                    isDark: isDark),
+                                _InfoRow('Status', site.status,
+                                    isDark: isDark),
+                                if (site.typeActivite != null)
+                                  _InfoRow('Activité', site.typeActivite!,
+                                      isDark: isDark),
+                                _InfoRow('Devise', site.currency,
+                                    isDark: isDark),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Stats
+                          GridView.count(
+                            crossAxisCount: 2,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 1.15,
+                            children: [
+                              StatCard(
+                                title: 'Revenu Aujourd\'hui',
+                                value: Fmt.currency(
+                                    _stats?['today_revenue'] ?? 0),
+                                icon: Icons.payments_outlined,
+                                color: AppTheme.success,
+                              ),
+                              StatCard(
+                                title: 'Utilisateurs Actifs',
+                                value: '${_stats?['active_users'] ?? 0}',
+                                icon: Icons.person,
+                                color: AppTheme.primary,
+                              ),
+                              StatCard(
+                                title: 'Vouchers Stock',
+                                value: '${_stats?['unsold_vouchers'] ?? 0}',
+                                icon: Icons.inventory_2_outlined,
+                                color: AppTheme.warning,
+                              ),
+                              StatCard(
+                                title: 'Ventes Aujourd\'hui',
+                                value: '${_stats?['today_sales'] ?? 0}',
+                                icon: Icons.receipt_long,
+                                color: AppTheme.info,
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Actions section
+                          Padding(
+                            padding: const EdgeInsets.only(left: 4, bottom: 12),
+                            child: Text(
+                              'Actions',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: textColor,
+                              ),
+                            ),
+                          ),
+                          _ActionButton(
+                            icon: Icons.speed,
+                            label: 'Tester la connexion',
+                            subtitle: _testResult,
+                            loading: _testing,
+                            isDark: isDark,
+                            onTap: _testConnection,
+                          ),
+                          _ActionButton(
+                            icon: Icons.sync,
+                            label: 'Synchroniser les ventes',
+                            isDark: isDark,
+                            onTap: _syncSales,
+                          ),
+                          _ActionButton(
+                            icon: Icons.assessment,
+                            label: 'Rapport du site',
+                            isDark: isDark,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      SiteReportScreen(site: site)),
+                            ),
+                          ),
+                          _ActionButton(
+                            icon: Icons.wifi,
+                            label: 'Ouvrir Mikhmon',
+                            isDark: isDark,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      MikhmonDashboardScreen(site: site)),
+                            ),
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Delete button
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: AppTheme.danger.withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.circular(16),
+                              child: InkWell(
+                                onTap: _deleteSite,
+                                borderRadius: BorderRadius.circular(16),
+                                child: const Padding(
+                                  padding:
+                                      EdgeInsets.symmetric(vertical: 14),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.delete_outline,
+                                          color: AppTheme.danger, size: 20),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Supprimer ce site',
+                                        style: TextStyle(
+                                          color: AppTheme.danger,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderIconButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _HeaderIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: isDark
+            ? AppTheme.darkSurface
+            : AppTheme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Icon(
+              icon,
+              color: AppTheme.primary,
+              size: 20,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -273,20 +463,31 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
-  const _InfoRow(this.label, this.value);
+  final bool isDark;
+  const _InfoRow(this.label, this.value, {this.isDark = false});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         children: [
-          Text(label,
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+          Text(
+            label,
+            style: TextStyle(
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+              fontSize: 14,
+            ),
+          ),
           const Spacer(),
-          Text(value,
-              style:
-                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: isDark ? Colors.white : const Color(0xFF1A1D21),
+            ),
+          ),
         ],
       ),
     );
@@ -298,6 +499,7 @@ class _ActionButton extends StatelessWidget {
   final String label;
   final String? subtitle;
   final bool loading;
+  final bool isDark;
   final VoidCallback onTap;
 
   const _ActionButton({
@@ -305,26 +507,100 @@ class _ActionButton extends StatelessWidget {
     required this.label,
     this.subtitle,
     this.loading = false,
+    this.isDark = false,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: loading
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2))
-            : Icon(icon, color: AppTheme.primary),
-        title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: subtitle != null
-            ? Text(subtitle!, style: const TextStyle(fontSize: 12))
-            : null,
-        trailing: const Icon(Icons.chevron_right),
-        onTap: loading ? null : onTap,
+    final containerColor = isDark ? AppTheme.darkCard : Colors.white;
+    final borderColor =
+        isDark ? AppTheme.darkBorder : const Color(0xFFE8EAF0);
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1D21);
+    final subtextColor =
+        isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        decoration: BoxDecoration(
+          color: containerColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor, width: 0.5),
+          boxShadow: [
+            BoxShadow(
+              color: isDark
+                  ? Colors.black.withValues(alpha: 0.15)
+                  : Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: loading ? null : onTap,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  if (loading)
+                    const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppTheme.primary,
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(icon, color: AppTheme.primary, size: 20),
+                    ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          label,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: textColor,
+                          ),
+                        ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            subtitle!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: subtextColor,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+                    size: 22,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

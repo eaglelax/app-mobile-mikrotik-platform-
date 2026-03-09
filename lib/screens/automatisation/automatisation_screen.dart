@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../services/api_client.dart';
@@ -13,11 +14,22 @@ class _AutomatisationScreenState extends State<AutomatisationScreen> {
   final _api = ApiClient();
   List<Map<String, dynamic>> _configs = [];
   bool _loading = true;
+  Timer? _autoRefreshTimer;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _autoRefreshTimer = Timer.periodic(
+      const Duration(seconds: 60),
+      (_) => _load(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _autoRefreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -160,87 +172,260 @@ class _AutomatisationScreenState extends State<AutomatisationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA);
+    final cardColor = isDark ? AppTheme.darkCard : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1D21);
+    final subtitleColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
+    final borderColor = isDark ? AppTheme.darkBorder : const Color(0xFFE8EAF0);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Automatisation'),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // -- Custom header --
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 12, 16, 4),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.arrow_back, color: textColor),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Automatisation',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (!_loading)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${_configs.length}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.primary,
+                        ),
+                      ),
+                    ),
+                  const Spacer(),
+                  IconButton(
+                    icon: Icon(Icons.refresh_rounded, color: subtitleColor),
+                    onPressed: _load,
+                  ),
+                ],
+              ),
+            ),
+
+            // -- Body --
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _configs.isEmpty
+                      ? _buildEmptyState(textColor, subtitleColor)
+                      : RefreshIndicator(
+                          onRefresh: _load,
+                          color: AppTheme.primary,
+                          child: ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                            itemCount: _configs.length,
+                            itemBuilder: (ctx, i) => _buildConfigCard(
+                              _configs[i],
+                              cardColor: cardColor,
+                              textColor: textColor,
+                              subtitleColor: subtitleColor,
+                              borderColor: borderColor,
+                              isDark: isDark,
+                            ),
+                          ),
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(Color textColor, Color subtitleColor) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(Icons.auto_mode_rounded,
+                size: 36, color: AppTheme.primary),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Aucune configuration',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              color: textColor,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Configurez la génération\nautomatique de tickets',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: subtitleColor,
+              height: 1.4,
+            ),
+          ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _configs.isEmpty
-              ? const Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+    );
+  }
+
+  Widget _buildConfigCard(
+    Map<String, dynamic> c, {
+    required Color cardColor,
+    required Color textColor,
+    required Color subtitleColor,
+    required Color borderColor,
+    required bool isDark,
+  }) {
+    final enabled = c['enabled'] == true || c['enabled'] == 1;
+    final siteName = c['site_name'] ?? '';
+    final profileName = c['profile_name'] ?? '';
+    final coverage = c['min_coverage_days'] ?? '-';
+    final restock = c['restock_days'] ?? '-';
+    final max = c['max_generate'] ?? '-';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            // -- Icon with colored background --
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: enabled
+                    ? AppTheme.success.withValues(alpha: 0.12)
+                    : Colors.grey.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.auto_mode_rounded,
+                size: 22,
+                color: enabled ? AppTheme.success : Colors.grey,
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // -- Title + subtitle --
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$siteName - $profileName',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Couverture: ${coverage}j  |  '
+                    'Restock: ${restock}j  |  '
+                    'Max: $max',
+                    style: TextStyle(fontSize: 12, color: subtitleColor),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+
+            // -- Switch --
+            Switch(
+              value: enabled,
+              onChanged: (v) => _toggleConfig(c, v),
+              activeThumbColor: AppTheme.success,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+
+            // -- Popup menu --
+            PopupMenuButton<String>(
+              icon: Icon(Icons.more_vert, color: subtitleColor, size: 20),
+              padding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              itemBuilder: (_) => [
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
                     children: [
-                      Icon(Icons.auto_mode, size: 48, color: Colors.grey),
-                      SizedBox(height: 12),
-                      Text('Aucune configuration automatique'),
-                      SizedBox(height: 4),
-                      Text('Configurez la génération automatique de tickets',
-                          style: TextStyle(color: Colors.grey, fontSize: 13)),
+                      Icon(Icons.edit_outlined, size: 18),
+                      SizedBox(width: 8),
+                      Text('Modifier'),
                     ],
                   ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: _configs.length,
-                    itemBuilder: (ctx, i) {
-                      final c = _configs[i];
-                      final enabled = c['enabled'] == true || c['enabled'] == 1;
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          leading: Icon(
-                            Icons.auto_mode,
-                            color: enabled ? AppTheme.success : Colors.grey,
-                          ),
-                          title: Text(
-                              '${c['site_name'] ?? ''} - ${c['profile_name'] ?? ''}',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 14)),
-                          subtitle: Text(
-                              'Couverture: ${c['min_coverage_days'] ?? '-'}j  '
-                              'Restock: ${c['restock_days'] ?? '-'}j  '
-                              'Max: ${c['max_generate'] ?? '-'}',
-                              style: const TextStyle(fontSize: 12)),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Switch(
-                                value: enabled,
-                                onChanged: (v) => _toggleConfig(c, v),
-                                activeThumbColor: AppTheme.success,
-                              ),
-                              PopupMenuButton(
-                                itemBuilder: (_) => [
-                                  const PopupMenuItem(
-                                      value: 'edit', child: Text('Modifier')),
-                                  const PopupMenuItem(
-                                      value: 'delete',
-                                      child: Text('Supprimer',
-                                          style: TextStyle(
-                                              color: AppTheme.danger))),
-                                ],
-                                onSelected: (action) {
-                                  if (action == 'edit') {
-                                    _editConfig(c);
-                                  } else if (action == 'delete') {
-                                    _deleteConfig(c);
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                          isThreeLine: true,
-                        ),
-                      );
-                    },
+                ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_outline, size: 18, color: AppTheme.danger),
+                      SizedBox(width: 8),
+                      Text('Supprimer',
+                          style: TextStyle(color: AppTheme.danger)),
+                    ],
                   ),
                 ),
+              ],
+              onSelected: (action) {
+                if (action == 'edit') {
+                  _editConfig(c);
+                } else if (action == 'delete') {
+                  _deleteConfig(c);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

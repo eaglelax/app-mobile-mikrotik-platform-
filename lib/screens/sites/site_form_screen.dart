@@ -86,92 +86,231 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
+  InputDecoration _inputDecoration(String label, {String? hint, bool isDark = false}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      labelStyle: TextStyle(
+        color: isDark ? Colors.grey[400] : Colors.grey[600],
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+      ),
+      hintStyle: TextStyle(
+        color: isDark ? Colors.grey[600] : Colors.grey[400],
+      ),
+      filled: true,
+      fillColor: isDark ? AppTheme.darkCard : Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppTheme.danger, width: 1.5),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppTheme.danger, width: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1D21);
+
     return Scaffold(
-      appBar: AppBar(title: Text(isEdit ? 'Modifier le site' : 'Nouveau site')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _nomCtrl,
-                decoration: const InputDecoration(labelText: 'Nom du site *'),
-                validator: (v) => v == null || v.isEmpty ? 'Requis' : null,
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _descCtrl,
-                decoration: const InputDecoration(labelText: 'Description'),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _ipCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'IP Routeur *', hintText: '192.168.1.1'),
-                validator: (v) => v == null || v.isEmpty ? 'Requis' : null,
-              ),
-              const SizedBox(height: 14),
-              Row(
+      backgroundColor: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Custom header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              child: Row(
                 children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _portCtrl,
-                      decoration: const InputDecoration(labelText: 'Port API'),
-                      keyboardType: TextInputType.number,
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: textColor,
+                      size: 22,
                     ),
+                    splashRadius: 24,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _userCtrl,
-                      decoration: const InputDecoration(labelText: 'Utilisateur'),
+                  const SizedBox(width: 4),
+                  Text(
+                    isEdit ? 'Modifier le site' : 'Nouveau site',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _passCtrl,
-                decoration: const InputDecoration(labelText: 'Mot de passe routeur'),
-                obscureText: true,
+            ),
+
+            // Form content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 4),
+
+                      // Site info section
+                      _SectionContainer(
+                        isDark: isDark,
+                        title: 'Informations du site',
+                        children: [
+                          TextFormField(
+                            controller: _nomCtrl,
+                            decoration: _inputDecoration('Nom du site *', isDark: isDark),
+                            style: TextStyle(color: textColor),
+                            validator: (v) => v == null || v.isEmpty ? 'Requis' : null,
+                          ),
+                          const SizedBox(height: 14),
+                          TextFormField(
+                            controller: _descCtrl,
+                            decoration: _inputDecoration('Description', isDark: isDark),
+                            style: TextStyle(color: textColor),
+                            maxLines: 2,
+                          ),
+                          const SizedBox(height: 14),
+                          DropdownButtonFormField<String>(
+                            initialValue: _typeActivite,
+                            decoration: _inputDecoration("Type d'activité", isDark: isDark),
+                            dropdownColor: isDark ? AppTheme.darkCard : Colors.white,
+                            style: TextStyle(color: textColor, fontSize: 16),
+                            icon: Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: isDark ? Colors.grey[400] : Colors.grey[600],
+                            ),
+                            items: AppConstants.siteActivities.entries
+                                .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                                .toList(),
+                            onChanged: (v) => setState(() => _typeActivite = v ?? 'other'),
+                          ),
+                          const SizedBox(height: 14),
+                          DropdownButtonFormField<String>(
+                            initialValue: _currency,
+                            decoration: _inputDecoration('Devise', isDark: isDark),
+                            dropdownColor: isDark ? AppTheme.darkCard : Colors.white,
+                            style: TextStyle(color: textColor, fontSize: 16),
+                            icon: Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: isDark ? Colors.grey[400] : Colors.grey[600],
+                            ),
+                            items: const [
+                              DropdownMenuItem(value: 'XOF', child: Text('XOF (FCFA)')),
+                              DropdownMenuItem(value: 'XAF', child: Text('XAF (FCFA)')),
+                              DropdownMenuItem(value: 'USD', child: Text('USD')),
+                              DropdownMenuItem(value: 'EUR', child: Text('EUR')),
+                            ],
+                            onChanged: (v) => setState(() => _currency = v ?? 'XOF'),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Router connection section
+                      _SectionContainer(
+                        isDark: isDark,
+                        title: 'Connexion routeur',
+                        children: [
+                          TextFormField(
+                            controller: _ipCtrl,
+                            decoration: _inputDecoration('IP Routeur *', hint: '192.168.1.1', isDark: isDark),
+                            style: TextStyle(color: textColor),
+                            validator: (v) => v == null || v.isEmpty ? 'Requis' : null,
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _portCtrl,
+                                  decoration: _inputDecoration('Port API', isDark: isDark),
+                                  style: TextStyle(color: textColor),
+                                  keyboardType: TextInputType.number,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _userCtrl,
+                                  decoration: _inputDecoration('Utilisateur', isDark: isDark),
+                                  style: TextStyle(color: textColor),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          TextFormField(
+                            controller: _passCtrl,
+                            decoration: _inputDecoration('Mot de passe routeur', isDark: isDark),
+                            style: TextStyle(color: textColor),
+                            obscureText: true,
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 28),
+
+                      // Submit button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton(
+                          onPressed: _loading ? null : _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: AppTheme.primary.withValues(alpha: 0.5),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          child: _loading
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(isEdit ? 'Enregistrer' : 'Créer le site'),
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(height: 14),
-              DropdownButtonFormField<String>(
-                initialValue: _typeActivite,
-                decoration: const InputDecoration(labelText: "Type d'activité"),
-                items: AppConstants.siteActivities.entries
-                    .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
-                    .toList(),
-                onChanged: (v) => setState(() => _typeActivite = v ?? 'other'),
-              ),
-              const SizedBox(height: 14),
-              DropdownButtonFormField<String>(
-                initialValue: _currency,
-                decoration: const InputDecoration(labelText: 'Devise'),
-                items: const [
-                  DropdownMenuItem(value: 'XOF', child: Text('XOF (FCFA)')),
-                  DropdownMenuItem(value: 'XAF', child: Text('XAF (FCFA)')),
-                  DropdownMenuItem(value: 'USD', child: Text('USD')),
-                  DropdownMenuItem(value: 'EUR', child: Text('EUR')),
-                ],
-                onChanged: (v) => setState(() => _currency = v ?? 'XOF'),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _loading ? null : _submit,
-                child: _loading
-                    ? const SizedBox(
-                        height: 20, width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : Text(isEdit ? 'Enregistrer' : 'Créer le site'),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -186,5 +325,52 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
     _userCtrl.dispose();
     _passCtrl.dispose();
     super.dispose();
+  }
+}
+
+class _SectionContainer extends StatelessWidget {
+  final bool isDark;
+  final String title;
+  final List<Widget> children;
+
+  const _SectionContainer({
+    required this.isDark,
+    required this.title,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.2)
+                : Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.grey[300] : Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 14),
+          ...children,
+        ],
+      ),
+    );
   }
 }

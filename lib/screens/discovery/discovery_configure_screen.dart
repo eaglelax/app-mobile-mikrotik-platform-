@@ -38,107 +38,148 @@ class _DiscoveryConfigureScreenState extends State<DiscoveryConfigureScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1D21);
+    final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final cardColor = isDark ? AppTheme.darkCard : Colors.white;
+    final shadow = isDark
+        ? <BoxShadow>[]
+        : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))];
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Diagnostic routeur'),
-        actions: [
-          IconButton(
-              icon: const Icon(Icons.refresh), onPressed: _runDiagnostic),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _diagnostic == null
-              ? const Center(child: Text('Erreur de diagnostic'))
-              : ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    // Status card
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            Icon(
-                              _diagnostic!['success'] == true
-                                  ? Icons.check_circle
-                                  : Icons.error,
-                              size: 48,
-                              color: _diagnostic!['success'] == true
-                                  ? AppTheme.success
-                                  : AppTheme.danger,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              _diagnostic!['success'] == true
-                                  ? 'Routeur accessible'
-                                  : 'Routeur inaccessible',
-                              style: const TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.w700),
-                            ),
-                            if (_diagnostic!['error'] != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Text(
-                                  _diagnostic!['error'].toString(),
-                                  style: const TextStyle(
-                                      color: AppTheme.danger, fontSize: 13),
-                                  textAlign: TextAlign.center,
+      backgroundColor: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: textColor),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text('Diagnostic routeur', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: textColor)),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.refresh_rounded, color: textColor),
+                    onPressed: _runDiagnostic,
+                  ),
+                ],
+              ),
+            ),
+
+            // Body
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _diagnostic == null
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.error_outline, size: 48, color: Colors.grey.shade400),
+                              const SizedBox(height: 12),
+                              Text('Erreur de diagnostic', style: TextStyle(color: subtitleColor, fontSize: 15)),
+                            ],
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _runDiagnostic,
+                          child: ListView(
+                            padding: const EdgeInsets.all(16),
+                            children: [
+                              // Status card
+                              Container(
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: cardColor,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: shadow,
+                                ),
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      width: 64,
+                                      height: 64,
+                                      decoration: BoxDecoration(
+                                        color: (_diagnostic!['success'] == true ? AppTheme.success : AppTheme.danger).withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(18),
+                                      ),
+                                      child: Icon(
+                                        _diagnostic!['success'] == true ? Icons.check_circle : Icons.error,
+                                        size: 32,
+                                        color: _diagnostic!['success'] == true ? AppTheme.success : AppTheme.danger,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      _diagnostic!['success'] == true ? 'Routeur accessible' : 'Routeur inaccessible',
+                                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textColor),
+                                    ),
+                                    if (_diagnostic!['error'] != null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 8),
+                                        child: Text(
+                                          _diagnostic!['error'].toString(),
+                                          style: const TextStyle(color: AppTheme.danger, fontSize: 13),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+                              const SizedBox(height: 20),
 
-                    // Details
-                    if ((_diagnostic!['results'] ?? _diagnostic!['data']) != null) ...[
-                      const Text('Informations',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 10),
-                      ...((_diagnostic!['results'] ?? _diagnostic!['data']) as Map<String, dynamic>)
-                          .entries
-                          .map((e) => Card(
-                                margin: const EdgeInsets.only(bottom: 6),
-                                child: ListTile(
-                                  title: Text(e.key,
-                                      style: TextStyle(
-                                          fontSize: 13,
-                                          color: Colors.grey.shade600)),
-                                  trailing: Text(e.value.toString(),
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14)),
-                                  dense: true,
+                              // Details
+                              if ((_diagnostic!['results'] ?? _diagnostic!['data']) != null) ...[
+                                Text('Informations', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textColor)),
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: cardColor,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: shadow,
+                                  ),
+                                  child: Column(
+                                    children: ((_diagnostic!['results'] ?? _diagnostic!['data']) as Map<String, dynamic>)
+                                        .entries
+                                        .map((e) => _InfoRow(e.key, e.value.toString(), subtitleColor, textColor))
+                                        .toList(),
+                                  ),
                                 ),
-                              )),
-                    ],
+                                const SizedBox(height: 20),
+                              ],
 
-                    // Connection info
-                    const SizedBox(height: 16),
-                    const Text('Paramètres de connexion',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 10),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            _InfoRow('IP',
-                                widget.routerInfo['router_ip'] ?? ''),
-                            _InfoRow('Port',
-                                '${widget.routerInfo['router_port'] ?? 8728}'),
-                            _InfoRow('Utilisateur',
-                                widget.routerInfo['router_user'] ?? ''),
-                          ],
+                              // Connection info
+                              Text('Paramètres de connexion', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textColor)),
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: cardColor,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: shadow,
+                                ),
+                                child: Column(
+                                  children: [
+                                    _InfoRow('IP', widget.routerInfo['router_ip'] ?? '', subtitleColor, textColor),
+                                    _InfoRow('Port', '${widget.routerInfo['router_port'] ?? 8728}', subtitleColor, textColor),
+                                    _InfoRow('Utilisateur', widget.routerInfo['router_user'] ?? '', subtitleColor, textColor),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -146,7 +187,9 @@ class _DiscoveryConfigureScreenState extends State<DiscoveryConfigureScreen> {
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
-  const _InfoRow(this.label, this.value);
+  final Color labelColor;
+  final Color valueColor;
+  const _InfoRow(this.label, this.value, this.labelColor, this.valueColor);
 
   @override
   Widget build(BuildContext context) {
@@ -154,12 +197,9 @@ class _InfoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Text(label,
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+          Text(label, style: TextStyle(color: labelColor, fontSize: 14)),
           const Spacer(),
-          Text(value,
-              style:
-                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          Text(value, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: valueColor)),
         ],
       ),
     );

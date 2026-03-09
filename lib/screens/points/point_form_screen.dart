@@ -27,12 +27,17 @@ class _PointFormScreenState extends State<PointFormScreen> {
   bool _isActive = true;
   bool _loading = false;
   bool _createGerant = false;
-
-  // Existing gerant info (for edit mode)
   List<Map<String, dynamic>> _gerants = [];
   bool _loadingGerants = false;
 
   bool get isEdit => widget.point != null;
+
+  static const _types = [
+    {'value': 'vendeur', 'label': 'Vendeur', 'icon': Icons.store_rounded, 'color': Color(0xFF3B82F6)},
+    {'value': 'zone', 'label': 'Zone', 'icon': Icons.wifi_rounded, 'color': Color(0xFFF59E0B)},
+    {'value': 'partenaire', 'label': 'Partenaire', 'icon': Icons.handshake_rounded, 'color': Color(0xFF8B5CF6)},
+    {'value': 'lieu', 'label': 'Lieu', 'icon': Icons.place_rounded, 'color': Color(0xFF10B981)},
+  ];
 
   @override
   void initState() {
@@ -76,19 +81,18 @@ class _PointFormScreenState extends State<PointFormScreen> {
           : await _service.create(data);
 
       if (mounted && result['success'] == true) {
-        // Create gerant if requested
         if (_createGerant && _gerantPasswordCtrl.text.trim().isNotEmpty) {
           final pointId = isEdit ? widget.point!.id : (result['id'] as int);
           try {
-            final gerantResult = await _gerantService.create(
+            final gr = await _gerantService.create(
               pointId: pointId,
               password: _gerantPasswordCtrl.text.trim(),
               name: _contactNameCtrl.text.trim().isNotEmpty
                   ? _contactNameCtrl.text.trim()
                   : null,
             );
-            if (mounted && gerantResult['success'] == true) {
-              await _showGerantCreated(gerantResult);
+            if (mounted && gr['success'] == true) {
+              await _showGerantCreated(gr);
             }
           } catch (e) {
             if (mounted) {
@@ -102,11 +106,13 @@ class _PointFormScreenState extends State<PointFormScreen> {
         }
         if (mounted) Navigator.pop(context, true);
       } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(result['error'] ?? 'Erreur'),
-              backgroundColor: AppTheme.danger),
-        );
+        if (result['success'] != true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(result['error'] ?? 'Erreur'),
+                backgroundColor: AppTheme.danger),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -133,9 +139,9 @@ class _PointFormScreenState extends State<PointFormScreen> {
             const Text('Identifiants du gérant:',
                 style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
-            _CopyableField(label: 'Utilisateur', value: username),
+            _copyRow('Utilisateur', username),
             const SizedBox(height: 8),
-            _CopyableField(label: 'Mot de passe', value: password),
+            _copyRow('Mot de passe', password),
             const SizedBox(height: 12),
             Text('Notez ces identifiants, le mot de passe ne sera plus visible.',
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
@@ -146,6 +152,33 @@ class _PointFormScreenState extends State<PointFormScreen> {
               onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
         ],
       ),
+    );
+  }
+
+  Widget _copyRow(String label, String value) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 90,
+          child: Text(label,
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+        ),
+        Expanded(
+          child: Text(value,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+        ),
+        IconButton(
+          icon: const Icon(Icons.copy, size: 16),
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: value));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('$label copié'), duration: const Duration(seconds: 1)),
+            );
+          },
+          constraints: const BoxConstraints(),
+          padding: EdgeInsets.zero,
+        ),
+      ],
     );
   }
 
@@ -192,149 +225,467 @@ class _PointFormScreenState extends State<PointFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(title: Text(isEdit ? 'Modifier le point' : 'Nouveau point')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _nameCtrl,
-                decoration: const InputDecoration(labelText: 'Nom *'),
-                validator: (v) => v == null || v.isEmpty ? 'Requis' : null,
-              ),
-              const SizedBox(height: 14),
-              DropdownButtonFormField<String>(
-                initialValue: _type,
-                decoration: const InputDecoration(labelText: 'Type'),
-                items: const [
-                  DropdownMenuItem(value: 'vendeur', child: Text('Vendeur')),
-                  DropdownMenuItem(value: 'zone', child: Text('Zone')),
-                  DropdownMenuItem(value: 'partenaire', child: Text('Partenaire')),
-                  DropdownMenuItem(value: 'lieu', child: Text('Lieu')),
-                ],
-                onChanged: (v) => setState(() => _type = v ?? 'vendeur'),
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _descCtrl,
-                decoration: const InputDecoration(labelText: 'Description'),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _contactNameCtrl,
-                decoration: const InputDecoration(labelText: 'Nom du contact'),
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _contactPhoneCtrl,
-                decoration: const InputDecoration(labelText: 'Téléphone'),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 14),
-              SwitchListTile(
-                title: const Text('Actif'),
-                value: _isActive,
-                onChanged: (v) => setState(() => _isActive = v),
-                activeThumbColor: AppTheme.success,
-              ),
-
-              // --- Gerant section ---
-              const SizedBox(height: 20),
-              const Divider(),
-              const SizedBox(height: 8),
-              Row(
+      backgroundColor: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
+      body: Column(
+        children: [
+          // ─── Header ───
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
+              child: Row(
                 children: [
-                  Icon(Icons.person_outline, size: 20, color: Colors.grey.shade600),
-                  const SizedBox(width: 8),
-                  const Text('Compte Gérant',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              if (isEdit && _loadingGerants)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                ),
-
-              // Show existing gerants in edit mode
-              if (isEdit && !_loadingGerants && _gerants.isNotEmpty)
-                ..._gerants.map((g) => Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: (g['status'] == 'active'
-                                  ? AppTheme.success
-                                  : AppTheme.danger)
-                              .withValues(alpha: 0.15),
-                          child: Icon(Icons.person,
-                              color: g['status'] == 'active'
-                                  ? AppTheme.success
-                                  : AppTheme.danger,
-                              size: 20),
-                        ),
-                        title: Text(g['username'] ?? '',
-                            style: const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: Text(g['name'] ?? '',
-                            style: const TextStyle(fontSize: 12)),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.lock_reset, size: 20),
-                          tooltip: 'Reset mot de passe',
-                          onPressed: () => _resetGerantPassword(g),
-                        ),
-                      ),
-                    )),
-
-              if (isEdit && !_loadingGerants && _gerants.isEmpty)
-                Text('Aucun gérant pour ce point.',
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
-
-              // Create gerant toggle
-              if (!isEdit || _gerants.isEmpty) ...[
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  title: const Text('Créer un compte gérant'),
-                  subtitle: const Text('Permet de gérer ce point de vente',
-                      style: TextStyle(fontSize: 12)),
-                  value: _createGerant,
-                  onChanged: (v) => setState(() => _createGerant = v),
-                  activeThumbColor: AppTheme.primary,
-                ),
-                if (_createGerant) ...[
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _gerantPasswordCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Mot de passe du gérant *',
-                      border: OutlineInputBorder(),
-                      helperText: 'Le nom d\'utilisateur sera généré automatiquement',
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(
+                      Icons.arrow_back_rounded,
+                      color: isDark ? Colors.white : const Color(0xFF1A1D21),
                     ),
-                    validator: _createGerant
-                        ? (v) => v == null || v.length < 4
-                            ? 'Min 4 caractères'
-                            : null
-                        : null,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    isEdit ? 'Modifier le point' : 'Nouveau point',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF1A1D21),
+                    ),
                   ),
                 ],
-              ],
-
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _loading ? null : _submit,
-                child: _loading
-                    ? const SizedBox(
-                        height: 20, width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : Text(isEdit ? 'Enregistrer' : 'Créer'),
               ),
-            ],
+            ),
           ),
+
+          const SizedBox(height: 8),
+
+          // ─── Form ───
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ─── Name field ───
+                    _buildLabel('Nom *'),
+                    const SizedBox(height: 6),
+                    _buildTextField(
+                      controller: _nameCtrl,
+                      hint: 'Nom du point de vente',
+                      icon: Icons.badge_rounded,
+                      validator: (v) => v == null || v.isEmpty ? 'Requis' : null,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // ─── Type selector ───
+                    _buildLabel('Type'),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: _types.map((t) {
+                        final value = t['value'] as String;
+                        final label = t['label'] as String;
+                        final icon = t['icon'] as IconData;
+                        final color = t['color'] as Color;
+                        final selected = _type == value;
+
+                        return Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 3),
+                            child: GestureDetector(
+                              onTap: () => setState(() => _type = value),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? color.withValues(alpha: 0.15)
+                                      : (isDark ? AppTheme.darkCard : Colors.white),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: selected ? color : Colors.transparent,
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: isDark
+                                      ? null
+                                      : [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.04),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    Icon(icon, color: selected ? color : Colors.grey.shade400, size: 22),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      label,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                        color: selected
+                                            ? color
+                                            : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // ─── Description ───
+                    _buildLabel('Description'),
+                    const SizedBox(height: 6),
+                    _buildTextField(
+                      controller: _descCtrl,
+                      hint: 'Description (optionnel)',
+                      icon: Icons.notes_rounded,
+                      maxLines: 3,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // ─── Contact section ───
+                    _buildLabel('Contact'),
+                    const SizedBox(height: 6),
+                    _buildTextField(
+                      controller: _contactNameCtrl,
+                      hint: 'Nom du contact',
+                      icon: Icons.person_rounded,
+                    ),
+                    const SizedBox(height: 10),
+                    _buildTextField(
+                      controller: _contactPhoneCtrl,
+                      hint: 'Telephone',
+                      icon: Icons.phone_rounded,
+                      keyboardType: TextInputType.phone,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // ─── Active toggle ───
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppTheme.darkCard : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: isDark
+                            ? null
+                            : [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: (_isActive ? AppTheme.success : Colors.grey).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              _isActive ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                              color: _isActive ? AppTheme.success : Colors.grey,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Statut',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? Colors.white : const Color(0xFF1A1D21),
+                                  ),
+                                ),
+                                Text(
+                                  _isActive ? 'Point actif' : 'Point inactif',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _isActive,
+                            onChanged: (v) => setState(() => _isActive = v),
+                            activeThumbColor: AppTheme.success,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // ─── Gerant section ───
+                    _buildLabel('Compte Gérant'),
+                    const SizedBox(height: 10),
+
+                    if (isEdit && _loadingGerants)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      ),
+
+                    if (isEdit && !_loadingGerants && _gerants.isNotEmpty)
+                      ..._gerants.map((g) => Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppTheme.darkCard : Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: isDark
+                                  ? null
+                                  : [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.04),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: (g['status'] == 'active'
+                                            ? AppTheme.success
+                                            : Colors.grey)
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(Icons.person_rounded,
+                                      color: g['status'] == 'active'
+                                          ? AppTheme.success
+                                          : Colors.grey,
+                                      size: 20),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(g['username'] ?? '',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark ? Colors.white : const Color(0xFF1A1D21),
+                                          )),
+                                      if (g['name'] != null && g['name'] != '')
+                                        Text(g['name'],
+                                            style: TextStyle(
+                                                fontSize: 12, color: Colors.grey.shade500)),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.lock_reset_rounded, size: 20),
+                                  tooltip: 'Reset mot de passe',
+                                  onPressed: () => _resetGerantPassword(g),
+                                ),
+                              ],
+                            ),
+                          )),
+
+                    if (isEdit && !_loadingGerants && _gerants.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text('Aucun gérant pour ce point.',
+                            style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
+                      ),
+
+                    if (!isEdit || _gerants.isEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppTheme.darkCard : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: isDark
+                              ? null
+                              : [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.04),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.person_add_rounded,
+                                  color: AppTheme.primary, size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Créer un compte gérant',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.white : const Color(0xFF1A1D21),
+                                    ),
+                                  ),
+                                  Text(
+                                    'Permet de gérer ce point',
+                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: _createGerant,
+                              onChanged: (v) => setState(() => _createGerant = v),
+                              activeThumbColor: AppTheme.primary,
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_createGerant) ...[
+                        const SizedBox(height: 10),
+                        _buildTextField(
+                          controller: _gerantPasswordCtrl,
+                          hint: 'Mot de passe du gérant (min 4 car.)',
+                          icon: Icons.lock_rounded,
+                          validator: _createGerant
+                              ? (v) => v == null || v.length < 4
+                                  ? 'Min 4 caractères'
+                                  : null
+                              : null,
+                        ),
+                      ],
+                    ],
+
+                    const SizedBox(height: 30),
+
+                    // ─── Submit button ───
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _loading ? null : _submit,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: _loading
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                isEdit ? 'Enregistrer' : 'Creer le point',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return TextFormField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      validator: validator,
+      style: TextStyle(
+        fontSize: 15,
+        color: isDark ? Colors.white : const Color(0xFF1A1D21),
+      ),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+        prefixIcon: Icon(icon, color: Colors.grey.shade400, size: 20),
+        filled: true,
+        fillColor: isDark ? AppTheme.darkCard : Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppTheme.danger, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppTheme.danger, width: 1.5),
         ),
       ),
     );
@@ -348,39 +699,5 @@ class _PointFormScreenState extends State<PointFormScreen> {
     _contactPhoneCtrl.dispose();
     _gerantPasswordCtrl.dispose();
     super.dispose();
-  }
-}
-
-class _CopyableField extends StatelessWidget {
-  final String label;
-  final String value;
-  const _CopyableField({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 90,
-          child: Text(label,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-        ),
-        Expanded(
-          child: Text(value,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-        ),
-        IconButton(
-          icon: const Icon(Icons.copy, size: 16),
-          onPressed: () {
-            Clipboard.setData(ClipboardData(text: value));
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('$label copié'), duration: const Duration(seconds: 1)),
-            );
-          },
-          constraints: const BoxConstraints(),
-          padding: EdgeInsets.zero,
-        ),
-      ],
-    );
   }
 }

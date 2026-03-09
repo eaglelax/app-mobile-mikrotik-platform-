@@ -74,7 +74,11 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
           })) {
             _selectedPointId = gerantPointId;
           } else {
-            _selectedPointId = _points.isNotEmpty ? (_points.first['id'] is int ? _points.first['id'] : int.tryParse(_points.first['id'].toString())) : null;
+            _selectedPointId = _points.isNotEmpty
+                ? (_points.first['id'] is int
+                    ? _points.first['id']
+                    : int.tryParse(_points.first['id'].toString()))
+                : null;
           }
         });
       } else {
@@ -112,123 +116,414 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final sites = context.watch<SiteProvider>().sites;
+    final bg = isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA);
+    final cardColor = isDark ? AppTheme.darkCard : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1D21);
+    final subtextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
     return PopScope(
       canPop: _selectedSite == null,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) setState(() { _selectedSite = null; _profiles = []; _result = null; _error = null; });
+        if (!didPop) {
+          setState(() {
+            _selectedSite = null;
+            _profiles = [];
+            _result = null;
+            _error = null;
+          });
+        }
       },
       child: Scaffold(
-      appBar: AppBar(
-        title: const Text('Vente Flash'),
-        actions: [
-          if (_selectedSite != null)
-            IconButton(
-              icon: const Icon(Icons.swap_horiz),
-              tooltip: 'Changer de site',
-              onPressed: () => setState(() {
-                _selectedSite = null;
-                _profiles = [];
-                _result = null;
-              }),
+        backgroundColor: bg,
+        body: SafeArea(
+          child: _selectedSite == null
+              ? _buildSiteSelector(
+                  sites, isDark, cardColor, textColor, subtextColor)
+              : _loadingProfiles
+                  ? _buildLoadingState(isDark, textColor, subtextColor)
+                  : _result != null
+                      ? _buildResult(isDark, cardColor, textColor, subtextColor)
+                      : _buildProfileGrid(
+                          isDark, cardColor, textColor, subtextColor),
+        ),
+      ),
+    );
+  }
+
+  // ── Custom header ──────────────────────────────────────────────────────
+  Widget _buildHeader({
+    required bool isDark,
+    required Color textColor,
+    required Color subtextColor,
+    required String title,
+    String? subtitle,
+    required VoidCallback onBack,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 16, 4),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: onBack,
+            icon: Icon(Icons.arrow_back_ios_new_rounded,
+                size: 20, color: textColor),
+            splashRadius: 22,
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: textColor)),
+                if (subtitle != null)
+                  Text(subtitle,
+                      style: TextStyle(fontSize: 13, color: subtextColor)),
+              ],
             ),
+          ),
         ],
       ),
-      body: _selectedSite == null
-          ? _buildSiteSelector(sites)
-          : _loadingProfiles
-              ? const Center(child: CircularProgressIndicator())
-              : _result != null
-                  ? _buildResult()
-                  : _buildProfileGrid(),
-    ),
     );
   }
 
-  Widget _buildSiteSelector(List<Site> sites) {
-    final configured = sites.where((s) => s.isConfigured).toList();
-    if (configured.isEmpty) {
-      return Center(
-        child: Text('Aucun site configure',
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: configured.length,
-      itemBuilder: (_, i) {
-        final site = configured[i];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            leading: Icon(Icons.router,
-                color: site.isOnline ? AppTheme.success : AppTheme.danger),
-            title: Text(site.nom,
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text(site.routerIp,
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _loadProfiles(site),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildProfileGrid() {
+  // ── Loading state ──────────────────────────────────────────────────────
+  Widget _buildLoadingState(bool isDark, Color textColor, Color subtextColor) {
     return Column(
       children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          color: AppTheme.primary.withValues(alpha: 0.05),
-          child: Text(
-            _selectedSite!.nom,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        _buildHeader(
+          isDark: isDark,
+          textColor: textColor,
+          subtextColor: subtextColor,
+          title: 'Vente Flash',
+          subtitle: 'Chargement...',
+          onBack: () => setState(() {
+            _selectedSite = null;
+            _profiles = [];
+            _result = null;
+            _error = null;
+          }),
+        ),
+        const Expanded(
+          child: Center(
+            child: CircularProgressIndicator(color: AppTheme.primary),
           ),
         ),
-        if (_points.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: DropdownButtonFormField<int>(
-              value: _selectedPointId,
-              decoration: const InputDecoration(
-                labelText: 'Point de vente',
-                prefixIcon: Icon(Icons.storefront),
-                isDense: true,
+      ],
+    );
+  }
+
+  // ── 1. Site selector ───────────────────────────────────────────────────
+  Widget _buildSiteSelector(List<Site> sites, bool isDark, Color cardColor,
+      Color textColor, Color subtextColor) {
+    final configured = sites.where((s) => s.isConfigured).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeader(
+          isDark: isDark,
+          textColor: textColor,
+          subtextColor: subtextColor,
+          title: 'Vente Flash',
+          subtitle: 'Choisissez un site',
+          onBack: () => Navigator.of(context).pop(),
+        ),
+        const SizedBox(height: 8),
+        if (configured.isEmpty)
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.router_outlined,
+                      size: 56, color: subtextColor.withValues(alpha: 0.5)),
+                  const SizedBox(height: 12),
+                  Text('Aucun site configure',
+                      style: TextStyle(color: subtextColor, fontSize: 15)),
+                ],
               ),
-              items: _points.map((p) {
-                final id = p['id'] is int ? p['id'] as int : int.tryParse(p['id'].toString()) ?? 0;
-                return DropdownMenuItem(value: id, child: Text(p['name'] ?? ''));
-              }).toList(),
-              onChanged: (v) => setState(() => _selectedPointId = v),
+            ),
+          )
+        else
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: configured.length,
+              itemBuilder: (_, i) {
+                final site = configured[i];
+                final isOnline = site.isOnline;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Material(
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    elevation: isDark ? 0 : 2,
+                    shadowColor: Colors.black.withValues(alpha: 0.06),
+                    child: InkWell(
+                      onTap: () => _loadProfiles(site),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: isDark
+                            ? BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppTheme.darkBorder),
+                              )
+                            : null,
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: (isOnline
+                                        ? AppTheme.success
+                                        : AppTheme.danger)
+                                    .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Icon(Icons.router_rounded,
+                                  color: isOnline
+                                      ? AppTheme.success
+                                      : AppTheme.danger,
+                                  size: 24),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(site.nom,
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 15,
+                                          color: textColor)),
+                                  const SizedBox(height: 3),
+                                  Text(site.routerIp,
+                                      style: TextStyle(
+                                          color: subtextColor, fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: (isOnline
+                                        ? AppTheme.success
+                                        : AppTheme.danger)
+                                    .withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                isOnline ? 'En ligne' : 'Hors ligne',
+                                style: TextStyle(
+                                  color: isOnline
+                                      ? AppTheme.success
+                                      : AppTheme.danger,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(Icons.chevron_right_rounded,
+                                color: subtextColor, size: 22),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
+      ],
+    );
+  }
+
+  // ── 2. Profile grid ────────────────────────────────────────────────────
+  Widget _buildProfileGrid(
+      bool isDark, Color cardColor, Color textColor, Color subtextColor) {
+    final profileColors = [
+      AppTheme.primary,
+      AppTheme.success,
+      AppTheme.accent,
+      AppTheme.info,
+      AppTheme.danger,
+      const Color(0xFF8B5CF6),
+    ];
+
+    return Column(
+      children: [
+        _buildHeader(
+          isDark: isDark,
+          textColor: textColor,
+          subtextColor: subtextColor,
+          title: 'Vente Flash',
+          subtitle: _selectedSite!.nom,
+          onBack: () => setState(() {
+            _selectedSite = null;
+            _profiles = [];
+            _result = null;
+            _error = null;
+          }),
+        ),
+
+        // Site name banner
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppTheme.primary.withValues(alpha: 0.08),
+                AppTheme.primary.withValues(alpha: 0.03),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+                color: AppTheme.primary.withValues(alpha: 0.15)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.router_rounded,
+                  color: AppTheme.primary, size: 20),
+              const SizedBox(width: 10),
+              Text(
+                _selectedSite!.nom,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Point dropdown
+        if (_points.isNotEmpty)
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isDark ? AppTheme.darkBorder : const Color(0xFFE5E7EB),
+                ),
+                boxShadow: isDark
+                    ? []
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: DropdownButtonFormField<int>(
+                initialValue: _selectedPointId,
+                decoration: InputDecoration(
+                  labelText: 'Point de vente',
+                  labelStyle: TextStyle(color: subtextColor, fontSize: 14),
+                  prefixIcon: const Icon(Icons.storefront_rounded,
+                      color: AppTheme.primary, size: 20),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  isDense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+                dropdownColor: cardColor,
+                style: TextStyle(
+                    color: textColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500),
+                items: _points.map((p) {
+                  final id = p['id'] is int
+                      ? p['id'] as int
+                      : int.tryParse(p['id'].toString()) ?? 0;
+                  return DropdownMenuItem(
+                      value: id, child: Text(p['name'] ?? ''));
+                }).toList(),
+                onChanged: (v) => setState(() => _selectedPointId = v),
+              ),
+            ),
+          ),
+
+        // Error message
         if (_error != null)
           Container(
-            margin: const EdgeInsets.all(16),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: AppTheme.danger.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
+              border:
+                  Border.all(color: AppTheme.danger.withValues(alpha: 0.2)),
             ),
-            child: Text(_error!,
-                style: const TextStyle(color: AppTheme.danger, fontSize: 13)),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded,
+                    color: AppTheme.danger, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(_error!,
+                      style:
+                          const TextStyle(color: AppTheme.danger, fontSize: 13)),
+                ),
+              ],
+            ),
           ),
-        if (_generating) const LinearProgressIndicator(),
+
+        // Generating indicator
+        if (_generating)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: const LinearProgressIndicator(
+                  color: AppTheme.primary, minHeight: 3),
+            ),
+          ),
+
+        // Profile grid
         Expanded(
           child: _profiles.isEmpty
               ? Center(
-                  child: Text('Aucun profil disponible',
-                      style: TextStyle(color: Colors.grey.shade500)))
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.wifi_off_rounded,
+                          size: 48,
+                          color: subtextColor.withValues(alpha: 0.4)),
+                      const SizedBox(height: 10),
+                      Text('Aucun profil disponible',
+                          style:
+                              TextStyle(color: subtextColor, fontSize: 14)),
+                    ],
+                  ),
+                )
               : GridView.builder(
                   padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: 1.2,
+                    childAspectRatio: 1.05,
                   ),
                   itemCount: _profiles.length,
                   itemBuilder: (_, i) {
@@ -247,29 +542,51 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                     final duration = validity != null
                         ? '$validity${units[unit] ?? ''}'
                         : 'Illimite';
+                    final color =
+                        profileColors[i % profileColors.length];
 
-                    return Card(
-                      elevation: 2,
+                    return Material(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      elevation: isDark ? 0 : 2,
+                      shadowColor: Colors.black.withValues(alpha: 0.06),
                       child: InkWell(
                         onTap: _generating ? null : () => _generate(name),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: isDark
+                              ? BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  border:
+                                      Border.all(color: AppTheme.darkBorder),
+                                )
+                              : null,
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.wifi, color: AppTheme.primary, size: 28),
-                              const SizedBox(height: 8),
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: color.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(13),
+                                ),
+                                child: Icon(Icons.wifi_rounded,
+                                    color: color, size: 22),
+                              ),
+                              const SizedBox(height: 10),
                               Text(name,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w700, fontSize: 14),
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                      color: textColor),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 3),
                               Text(duration,
                                   style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 12)),
+                                      color: subtextColor, fontSize: 12)),
                               if (price != null) ...[
                                 const SizedBox(height: 4),
                                 Text(
@@ -277,7 +594,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                                       num.tryParse('$price') ?? 0, currency),
                                   style: const TextStyle(
                                       color: AppTheme.success,
-                                      fontWeight: FontWeight.w700,
+                                      fontWeight: FontWeight.w800,
                                       fontSize: 15),
                                 ),
                               ],
@@ -293,7 +610,9 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
     );
   }
 
-  Widget _buildResult() {
+  // ── 3. Result view ─────────────────────────────────────────────────────
+  Widget _buildResult(
+      bool isDark, Color cardColor, Color textColor, Color subtextColor) {
     final code = _result!['code'] ?? '';
     final password = _result!['password'] ?? '';
     final profile = _result!['profile'] ?? '';
@@ -302,113 +621,264 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
     final duration = _result!['duration'] ?? '';
     final siteName = _result!['site_name'] ?? '';
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          const Icon(Icons.check_circle, color: AppTheme.success, size: 64),
-          const SizedBox(height: 16),
-          const Text('Voucher genere !',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 24),
+    return Column(
+      children: [
+        _buildHeader(
+          isDark: isDark,
+          textColor: textColor,
+          subtextColor: subtextColor,
+          title: 'Vente Flash',
+          subtitle: 'Voucher genere',
+          onBack: () => setState(() {
+            _result = null;
+            _error = null;
+          }),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            child: Column(
+              children: [
+                // Success icon
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: AppTheme.success.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check_circle_rounded,
+                      color: AppTheme.success, size: 44),
+                ),
+                const SizedBox(height: 14),
+                Text('Voucher genere !',
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: textColor)),
+                const SizedBox(height: 20),
 
-          // Ticket card
-          Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  Text(siteName,
-                      style: TextStyle(
-                          color: Colors.grey.shade600, fontSize: 13)),
-                  const SizedBox(height: 12),
-                  // Code
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 16),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: SelectableText(
-                      code,
-                      style: const TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 4),
+                // Voucher card
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: isDark
+                        ? Border.all(color: AppTheme.darkBorder)
+                        : null,
+                    boxShadow: isDark
+                        ? []
+                        : [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        Text(siteName,
+                            style:
+                                TextStyle(color: subtextColor, fontSize: 13)),
+                        const SizedBox(height: 14),
+
+                        // Code display
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 18),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary.withValues(alpha: 0.07),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                                color:
+                                    AppTheme.primary.withValues(alpha: 0.15)),
+                          ),
+                          child: Center(
+                            child: SelectableText(
+                              code,
+                              style: TextStyle(
+                                fontSize: 30,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 4,
+                                color: textColor,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Password
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? AppTheme.darkSurface
+                                : const Color(0xFFF5F6FA),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.lock_outline_rounded,
+                                  size: 15, color: subtextColor),
+                              const SizedBox(width: 6),
+                              Text('Mot de passe: ',
+                                  style: TextStyle(
+                                      fontSize: 13, color: subtextColor)),
+                              Text(password,
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: textColor)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+
+                        // Divider
+                        Divider(
+                            color: isDark
+                                ? AppTheme.darkBorder
+                                : const Color(0xFFE5E7EB)),
+                        const SizedBox(height: 14),
+
+                        // Info chips
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _infoChip(Icons.wifi_rounded, profile,
+                                AppTheme.primary, isDark),
+                            _infoChip(Icons.timer_outlined, duration,
+                                AppTheme.info, isDark),
+                            if (price != null)
+                              _infoChip(
+                                  Icons.payments_outlined,
+                                  Fmt.currency(price as num, currency),
+                                  AppTheme.success,
+                                  isDark),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text('Mot de passe: $password',
-                      style: TextStyle(
-                          fontSize: 14, color: Colors.grey.shade600)),
-                  const SizedBox(height: 16),
-                  // Info row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _infoChip(Icons.wifi, profile),
-                      _infoChip(Icons.timer, duration),
-                      if (price != null)
-                        _infoChip(Icons.payments,
-                            Fmt.currency(price as num, currency)),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        height: 50,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isDark
+                                ? AppTheme.darkBorder
+                                : const Color(0xFFE5E7EB),
+                          ),
+                        ),
+                        child: Material(
+                          color: cardColor,
+                          borderRadius: BorderRadius.circular(14),
+                          child: InkWell(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(
+                                  text: 'Code: $code / Pass: $password'));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text('Copie !'),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10)),
+                                ),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(14),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.copy_rounded,
+                                    size: 18, color: textColor),
+                                const SizedBox(width: 8),
+                                Text('Copier',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: textColor,
+                                        fontSize: 14)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SizedBox(
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: () => setState(() {
+                            _result = null;
+                            _error = null;
+                          }),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.flash_on_rounded, size: 18),
+                              SizedBox(width: 8),
+                              Text('Nouvelle vente',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-
-          const SizedBox(height: 24),
-
-          // Actions
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Clipboard.setData(
-                        ClipboardData(text: 'Code: $code / Pass: $password'));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Copie !')),
-                    );
-                  },
-                  icon: const Icon(Icons.copy),
-                  label: const Text('Copier'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => setState(() {
-                    _result = null;
-                    _error = null;
-                  }),
-                  icon: const Icon(Icons.flash_on),
-                  label: const Text('Nouvelle vente'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _infoChip(IconData icon, String label) {
+  // ── Info chip (for result view) ────────────────────────────────────────
+  Widget _infoChip(IconData icon, String label, Color color, bool isDark) {
     return Column(
       children: [
-        Icon(icon, size: 18, color: Colors.grey.shade600),
-        const SizedBox(height: 4),
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Icon(icon, size: 18, color: color),
+        ),
+        const SizedBox(height: 6),
         Text(label,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF1A1D21))),
       ],
     );
   }
