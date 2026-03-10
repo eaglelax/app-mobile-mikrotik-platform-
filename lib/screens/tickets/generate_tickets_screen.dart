@@ -335,29 +335,6 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 20),
-                                if (_points.isNotEmpty) ...[
-                                  DropdownButtonFormField<int>(
-                                    value: _selectedPointId,
-                                    decoration: _inputDecoration('Point de vente'),
-                                    dropdownColor: _cardColor,
-                                    borderRadius: BorderRadius.circular(14),
-                                    style: TextStyle(color: _textPrimary, fontSize: 15),
-                                    items: [
-                                      DropdownMenuItem<int>(
-                                        value: null,
-                                        child: Text('Aucun (stock général)',
-                                            style: TextStyle(color: _textPrimary)),
-                                      ),
-                                      ..._points.map((p) => DropdownMenuItem<int>(
-                                            value: p.id,
-                                            child: Text(p.name),
-                                          )),
-                                    ],
-                                    onChanged: (v) =>
-                                        setState(() => _selectedPointId = v),
-                                  ),
-                                  const SizedBox(height: 16),
-                                ],
                                 DropdownButtonFormField<String>(
                                   value: _selectedProfile,
                                   decoration: _inputDecoration('Profil'),
