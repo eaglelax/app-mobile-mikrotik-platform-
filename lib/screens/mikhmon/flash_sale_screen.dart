@@ -268,7 +268,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               child: DropdownButtonFormField<int>(
-                value: _selectedPointId,
+                initialValue: _selectedPointId,
                 decoration: InputDecoration(
                   labelText: 'Point de vente',
                   prefixIcon: Icon(Icons.storefront_rounded,
