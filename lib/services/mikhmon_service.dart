@@ -103,4 +103,9 @@ class MikhmonService {
     return await _api
         .get('/api/hotspot.php', {'site_id': siteId.toString(), 'action': 'logs', 'topic': topic});
   }
+
+  Future<Map<String, dynamic>> clearMac(int siteId, String username) async {
+    return await _api.post(
+        '/api/hotspot.php', {'site_id': siteId, 'action': 'clear_mac', 'username': username});
+  }
 }
