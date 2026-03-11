@@ -33,6 +33,9 @@ class ApiConfig {
   static const String alerts = '/api/alerts.php';
   static const String autoGenConfig = '/api/auto-generate-config.php';
   static const String autoGenBatches = '/api/auto-generate-batches.php';
+  static const String ticketBatches = '/api/ticket-batches.php';
+  static const String ticketBatchDetail = '/api/ticket-batch-detail.php';
+  static const String reportSales = '/api/report-sales.php';
   static const String autoGenStatus = '/api/auto-generate-status.php';
   static const String usersBulk = '/api/users-bulk.php';
 

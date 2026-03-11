@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../models/site.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/site_provider.dart';
 import '../../services/site_service.dart';
 import '../../utils/constants.dart';
@@ -125,16 +126,32 @@ class _SitesListScreenState extends State<SitesListScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final created = await Navigator.push<bool>(
-            context,
-            MaterialPageRoute(builder: (_) => const SiteFormScreen()),
+      floatingActionButton: Builder(
+        builder: (ctx) {
+          final auth = ctx.read<AuthProvider>();
+          final quota = auth.user?.getQuota('sites') ?? 0;
+          final canCreate = auth.isAdmin || siteProvider.sites.length < quota;
+          return FloatingActionButton(
+            onPressed: () async {
+              if (!canCreate) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(
+                    content: Text('Limite atteinte ($quota sites max)'),
+                    backgroundColor: AppTheme.warning,
+                  ),
+                );
+                return;
+              }
+              final created = await Navigator.push<bool>(
+                ctx,
+                MaterialPageRoute(builder: (_) => const SiteFormScreen()),
+              );
+              if (created == true) siteProvider.fetchSites();
+            },
+            backgroundColor: canCreate ? AppTheme.primary : Colors.grey,
+            child: const Icon(Icons.add, color: Colors.white),
           );
-          if (created == true) siteProvider.fetchSites();
         },
-        backgroundColor: AppTheme.primary,
-        child: const Icon(Icons.add, color: Colors.white),
       ),
       body: RefreshIndicator(
         color: AppTheme.primary,

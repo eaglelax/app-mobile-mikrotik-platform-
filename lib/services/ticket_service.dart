@@ -38,6 +38,19 @@ class TicketService {
   }
 
   Future<Map<String, dynamic>> fetchBatches(int siteId) async {
+    return await _api.get('/api/ticket-batches.php', {
+      'site_id': siteId.toString(),
+    });
+  }
+
+  Future<Map<String, dynamic>> fetchBatchDetail(int siteId, String batchId) async {
+    return await _api.get('/api/ticket-batch-detail.php', {
+      'site_id': siteId.toString(),
+      'batch_id': batchId,
+    });
+  }
+
+  Future<Map<String, dynamic>> fetchAutoGenBatches(int siteId) async {
     return await _api.get('/api/auto-generate-batches.php', {
       'site_id': siteId.toString(),
     });

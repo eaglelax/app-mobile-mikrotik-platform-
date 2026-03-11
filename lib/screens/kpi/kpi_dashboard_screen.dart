@@ -458,7 +458,29 @@ class _KpiDashboardScreenState extends State<KpiDashboardScreen> {
                               final mixItems =
                                   _salesMix?['items'] as List? ?? [];
                               if (mixItems.isEmpty) {
-                                return const SizedBox.shrink();
+                                return Container(
+                                  margin: const EdgeInsets.only(top: 16),
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? AppTheme.darkCard : Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: isDark ? null : [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.04),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Icon(Icons.pie_chart_outline, size: 40, color: Colors.grey.shade300),
+                                      const SizedBox(height: 8),
+                                      Text('Aucune vente sur cette periode',
+                                          style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
+                                    ],
+                                  ),
+                                );
                               }
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,

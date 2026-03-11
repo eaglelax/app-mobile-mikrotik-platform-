@@ -25,7 +25,11 @@ class MikhmonHubScreen extends StatelessWidget {
                       size: 20,
                       color: isDark ? Colors.white : const Color(0xFF1A1D21),
                     ),
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () {
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      }
+                    },
                   ),
                   const SizedBox(width: 4),
                   Text(

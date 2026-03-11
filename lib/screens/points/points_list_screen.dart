@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../models/point.dart';
 import '../../models/site.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/site_provider.dart';
 import '../../services/point_service_api.dart';
 import 'gerants_screen.dart';
@@ -111,16 +112,32 @@ class _PointsListScreenState extends State<PointsListScreen> {
       },
       child: Scaffold(
         backgroundColor: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () async {
-            final created = await Navigator.push<bool>(
-              context,
-              MaterialPageRoute(builder: (_) => PointFormScreen(siteId: _site!.id)),
+        floatingActionButton: Builder(
+          builder: (ctx) {
+            final auth = ctx.read<AuthProvider>();
+            final quota = auth.user?.getQuota('points') ?? 0;
+            final canCreate = auth.isAdmin || _points.length < quota;
+            return FloatingActionButton(
+              onPressed: () async {
+                if (!canCreate) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(
+                      content: Text('Limite atteinte ($quota points max)'),
+                      backgroundColor: AppTheme.warning,
+                    ),
+                  );
+                  return;
+                }
+                final created = await Navigator.push<bool>(
+                  ctx,
+                  MaterialPageRoute(builder: (_) => PointFormScreen(siteId: _site!.id)),
+                );
+                if (created == true) _load();
+              },
+              backgroundColor: canCreate ? AppTheme.primary : Colors.grey,
+              child: const Icon(Icons.add, color: Colors.white),
             );
-            if (created == true) _load();
           },
-          backgroundColor: AppTheme.primary,
-          child: const Icon(Icons.add, color: Colors.white),
         ),
         body: RefreshIndicator(
           color: AppTheme.primary,

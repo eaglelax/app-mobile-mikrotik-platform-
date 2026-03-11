@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../config/theme.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/tunnel_service.dart';
 import 'tunnel_form_screen.dart';
 
@@ -104,16 +106,32 @@ class _TunnelsScreenState extends State<TunnelsScreen> {
 
     return Scaffold(
       backgroundColor: bgColor,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final created = await Navigator.push<bool>(
-            context,
-            MaterialPageRoute(builder: (_) => const TunnelFormScreen()),
+      floatingActionButton: Builder(
+        builder: (ctx) {
+          final auth = ctx.read<AuthProvider>();
+          final quota = auth.user?.getQuota('vpn') ?? 0;
+          final canCreate = auth.isAdmin || _tunnels.length < quota;
+          return FloatingActionButton(
+            onPressed: () async {
+              if (!canCreate) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(
+                    content: Text('Limite atteinte ($quota tunnels max)'),
+                    backgroundColor: AppTheme.warning,
+                  ),
+                );
+                return;
+              }
+              final created = await Navigator.push<bool>(
+                ctx,
+                MaterialPageRoute(builder: (_) => const TunnelFormScreen()),
+              );
+              if (created == true) _load();
+            },
+            backgroundColor: canCreate ? AppTheme.primary : Colors.grey,
+            child: const Icon(Icons.add, color: Colors.white),
           );
-          if (created == true) _load();
         },
-        backgroundColor: AppTheme.primary,
-        child: const Icon(Icons.add, color: Colors.white),
       ),
       body: SafeArea(
         child: Column(

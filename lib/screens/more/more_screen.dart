@@ -102,19 +102,19 @@ class MoreScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    if (user?.isAdmin == true)
+                    if (user != null && !user.isGerant)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                         decoration: BoxDecoration(
-                          color: AppTheme.primary.withValues(alpha: 0.1),
+                          color: (user.isAdmin ? AppTheme.primary : const Color(0xFF10B981)).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Text(
-                          'Admin',
+                        child: Text(
+                          user.isAdmin ? 'Admin' : 'Proprietaire',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.primary,
+                            color: user.isAdmin ? AppTheme.primary : const Color(0xFF10B981),
                           ),
                         ),
                       ),
@@ -144,7 +144,10 @@ class MoreScreen extends StatelessWidget {
                   _MenuItem(Icons.flash_on_rounded, 'Vente Flash', const Color(0xFFEF4444), () => _nav(context, const FlashSaleScreen())),
                   _MenuItem(Icons.notifications_rounded, 'Notifications', const Color(0xFFF97316), () => _nav(context, const NotificationsScreen()), badge: notif.unreadCount),
                   _MenuItem(Icons.travel_explore_rounded, 'Decouverte', const Color(0xFF8B5CF6), () => _nav(context, const DiscoveryScreen())),
-                  _MenuItem(Icons.bar_chart_rounded, 'KPI', const Color(0xFFD97706), () => _nav(context, const KpiDashboardScreen())),
+                  if (auth.isAdmin)
+                    _MenuItem(Icons.bar_chart_rounded, 'KPI', const Color(0xFFD97706), () => _nav(context, const KpiDashboardScreen()))
+                  else
+                    _MenuItem(null, '', Colors.transparent, () {}),
                 ]),
                 const SizedBox(height: 12),
                 _menuRow(context, isDark, [
@@ -157,19 +160,14 @@ class MoreScreen extends StatelessWidget {
             ),
           ),
 
-          // ─── Admin ───
-          if (auth.isAdmin) ...[
+          // ─── Outils avancés (visibles selon features/quotas) ───
+          if (_hasAdvancedTools(auth)) ...[
             const SizedBox(height: 20),
-            _sectionLabel('Administration', isDark),
+            _sectionLabel(auth.isAdmin ? 'Administration' : 'Outils', isDark),
             const SizedBox(height: 10),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _menuRow(context, isDark, [
-                _MenuItem(Icons.people_rounded, 'Utilisateurs', const Color(0xFF06B6D4), () => _nav(context, const UsersListScreen())),
-                _MenuItem(Icons.vpn_key_rounded, 'Tunnels VPN', const Color(0xFFF59E0B), () => _nav(context, const TunnelsScreen())),
-                _MenuItem(Icons.auto_mode_rounded, 'Automatisation', const Color(0xFF10B981), () => _nav(context, const AutomatisationScreen())),
-                _MenuItem(Icons.terminal_rounded, 'Scripts', const Color(0xFFEF4444), () => _nav(context, const ScriptsScreen())),
-              ]),
+              child: _menuRow(context, isDark, _buildAdvancedItems(context, auth)),
             ),
           ],
 
@@ -304,6 +302,45 @@ class MoreScreen extends StatelessWidget {
         );
       }).toList(),
     );
+  }
+
+  bool _hasAdvancedTools(AuthProvider auth) {
+    if (auth.isAdmin) return true;
+    final user = auth.user;
+    if (user == null) return false;
+    return _safeQuota(user, 'vpn') > 0 || _safeQuota(user, 'autogen_configs') > 0;
+  }
+
+  int _safeQuota(dynamic user, String resource) {
+    try {
+      final val = user.getQuota(resource);
+      if (val is int) return val;
+      if (val is String) return int.tryParse(val) ?? 0;
+      return 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  List<_MenuItem> _buildAdvancedItems(BuildContext context, AuthProvider auth) {
+    final empty = _MenuItem(null, '', Colors.transparent, () {});
+    final hasVpn = auth.isAdmin || _safeQuota(auth.user, 'vpn') > 0;
+    final hasAuto = auth.isAdmin || _safeQuota(auth.user, 'autogen_configs') > 0;
+
+    return [
+      auth.isAdmin
+          ? _MenuItem(Icons.people_rounded, 'Utilisateurs', const Color(0xFF06B6D4), () => _nav(context, const UsersListScreen()))
+          : empty,
+      hasVpn
+          ? _MenuItem(Icons.vpn_key_rounded, 'Tunnels VPN', const Color(0xFFF59E0B), () => _nav(context, const TunnelsScreen()))
+          : empty,
+      hasAuto
+          ? _MenuItem(Icons.auto_mode_rounded, 'Automatisation', const Color(0xFF10B981), () => _nav(context, const AutomatisationScreen()))
+          : empty,
+      auth.isAdmin
+          ? _MenuItem(Icons.terminal_rounded, 'Scripts', const Color(0xFFEF4444), () => _nav(context, const ScriptsScreen()))
+          : empty,
+    ];
   }
 
   void _nav(BuildContext context, Widget screen) {

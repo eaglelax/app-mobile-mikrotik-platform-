@@ -34,7 +34,11 @@ class User {
 
   int getQuota(String resource) {
     if (isAdmin) return 999;
-    return features?[resource] ?? features?['max_$resource'] ?? 0;
+    final val = features?[resource] ?? features?['max_$resource'];
+    if (val == null) return 0;
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    return int.tryParse(val.toString()) ?? 0;
   }
 
   factory User.fromJson(Map<String, dynamic> json) => User(
