@@ -1,7 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../config/theme.dart';
+import '../../models/point.dart';
+import '../../providers/site_provider.dart';
+import '../../services/api_client.dart';
 import '../../services/kpi_service.dart';
+import '../../services/point_service_api.dart';
 import '../../utils/formatters.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -13,16 +18,40 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen> {
   final _kpi = KpiService();
-  String _period = 'today';
-  Map<String, dynamic>? _revenue;
-  Map<String, dynamic>? _salesMix;
-  Map<String, dynamic>? _topVendors;
-  bool _loading = true;
+  final _api = ApiClient();
+  final _pointService = PointServiceApi();
+  bool _refreshing = false;
   Timer? _autoRefresh;
+
+  // Period filter — default today
+  String _period = 'today';
+  DateTime? _customFrom;
+  DateTime? _customTo;
+
+  // Month selector (for month mode)
+  late int _selectedMonth;
+  late int _selectedYear;
+
+  // Data
+  Map<String, dynamic>? _revenue;
+  List _topSites = [];
+  List _topVendors = [];
+
+  // Points de vente per site
+  final Map<int, List<Point>> _sitePoints = {};
+  // Per-point revenue: siteId -> { pointId -> {total, count} }
+  final Map<int, Map<int, Map<String, num>>> _pointRevenue = {};
+  bool _detailsLoading = false;
+
+  // Expanded sites
+  final Set<int> _expandedSites = {};
 
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _selectedMonth = now.month;
+    _selectedYear = now.year;
     _load();
     _autoRefresh = Timer.periodic(const Duration(seconds: 60), (_) => _load());
   }
@@ -33,541 +62,531 @@ class _ReportsScreenState extends State<ReportsScreen> {
     super.dispose();
   }
 
-  Map<String, String> _dateRange() {
+  String _computeDateFrom() {
     final now = DateTime.now();
-    final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-    String dateFrom;
     switch (_period) {
       case 'today':
-        dateFrom = today;
+        return _fmtDate(now);
       case 'week':
-        final d = now.subtract(const Duration(days: 7));
-        dateFrom = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+        return _fmtDate(now.subtract(const Duration(days: 7)));
       case 'month':
-        dateFrom = '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
-      case 'year':
-        dateFrom = '${now.year}-01-01';
+        return '$_selectedYear-${_selectedMonth.toString().padLeft(2, '0')}-01';
+      case 'custom':
+        return _customFrom != null ? _fmtDate(_customFrom!) : _fmtDate(now);
       default:
-        dateFrom = today;
+        return _fmtDate(now);
     }
-    return {'date_from': dateFrom, 'date_to': today};
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    try {
-      final range = _dateRange();
-      final results = await Future.wait([
-        _kpi.fetchRevenue(period: _period, dateFrom: range['date_from']!, dateTo: range['date_to']!),
-        _kpi.fetchSalesMix(),
-        _kpi.fetchTopVendors(),
-      ]);
-      _revenue = results[0];
-      _salesMix = results[1];
-      _topVendors = results[2];
-    } catch (_) {}
-    if (mounted) setState(() => _loading = false);
+  String _computeDateTo() {
+    final now = DateTime.now();
+    switch (_period) {
+      case 'today':
+        return _fmtDate(now);
+      case 'week':
+        return _fmtDate(now);
+      case 'month':
+        final lastDay = DateTime(_selectedYear, _selectedMonth + 1, 0).day;
+        return '$_selectedYear-${_selectedMonth.toString().padLeft(2, '0')}-$lastDay';
+      case 'custom':
+        return _customTo != null ? _fmtDate(_customTo!) : _fmtDate(now);
+      default:
+        return _fmtDate(now);
+    }
   }
+
+  String _fmtDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  Future<void> _load() async {
+    // Never clear existing data — just refresh in background
+    setState(() => _refreshing = true);
+    final sites = context.read<SiteProvider>().sites;
+    final dateFrom = _computeDateFrom();
+    final dateTo = _computeDateTo();
+    try {
+      final results = await Future.wait([
+        _kpi.fetchRevenue(period: _period == 'month' ? 'month' : 'day', dateFrom: dateFrom, dateTo: dateTo),
+        _kpi.fetchTopSites(limit: 50, dateFrom: dateFrom, dateTo: dateTo),
+        _kpi.fetchTopVendors(dateFrom: dateFrom, dateTo: dateTo),
+      ]);
+      if (!mounted) return;
+      _revenue = results[0];
+      _topSites = (results[1]['items'] ?? results[1]['sites'] ?? []) as List;
+      _topVendors = (results[2]['items'] ?? results[2]['vendors'] ?? []) as List;
+      setState(() => _refreshing = false);
+
+      // Load per-site details in background (non-blocking)
+      _loadSiteDetails(sites, dateFrom, dateTo);
+    } catch (_) {
+      if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  Future<void> _loadSiteDetails(List sites, String dateFrom, String dateTo) async {
+    setState(() => _detailsLoading = true);
+    // Don't clear — old data stays visible until replaced
+
+    for (final site in sites.where((s) => s.isConfigured)) {
+      if (!mounted) return;
+
+      // Load points for the site
+      try {
+        final points = await _pointService.fetchBySite(site.id);
+        if (points.isNotEmpty && mounted) {
+          _sitePoints[site.id] = points;
+          setState(() {});
+        }
+      } catch (_) {}
+
+      // Load sales for the site and aggregate per point
+      try {
+        final salesResp = await _api.get('/api/sync-sales.php', {
+          'site_id': site.id.toString(),
+        });
+        final allSales = (salesResp['sales'] as List?) ?? [];
+
+        // Filter by date range and aggregate per point_id
+        final perPoint = <int, Map<String, num>>{};
+        for (final s in allSales) {
+          final saleDate = s['sale_date']?.toString() ?? '';
+          // Only include sales within date range
+          if (saleDate.compareTo(dateFrom) >= 0 && saleDate.compareTo('$dateTo 23:59:59') <= 0) {
+            final pid = int.tryParse('${s['point_id'] ?? 0}') ?? 0;
+            final amount = num.tryParse('${s['price'] ?? s['amount'] ?? 0}') ?? 0;
+            perPoint.putIfAbsent(pid, () => {'total': 0, 'count': 0});
+            perPoint[pid]!['total'] = (perPoint[pid]!['total'] ?? 0) + amount;
+            perPoint[pid]!['count'] = (perPoint[pid]!['count'] ?? 0) + 1;
+          }
+        }
+
+        if (mounted) {
+          _pointRevenue[site.id] = perPoint;
+          setState(() {});
+        }
+      } catch (_) {}
+    }
+
+    if (mounted) setState(() => _detailsLoading = false);
+  }
+
+  void _prevMonth() {
+    setState(() {
+      if (_selectedMonth == 1) { _selectedMonth = 12; _selectedYear--; }
+      else { _selectedMonth--; }
+    });
+    _load();
+  }
+
+  void _nextMonth() {
+    final now = DateTime.now();
+    if (_selectedYear == now.year && _selectedMonth >= now.month) return;
+    setState(() {
+      if (_selectedMonth == 12) { _selectedMonth = 1; _selectedYear++; }
+      else { _selectedMonth++; }
+    });
+    _load();
+  }
+
+  Future<void> _pickDateRange(BuildContext ctx) async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: ctx,
+      firstDate: DateTime(2020),
+      lastDate: now,
+      initialDateRange: _customFrom != null && _customTo != null
+          ? DateTimeRange(start: _customFrom!, end: _customTo!)
+          : DateTimeRange(start: now.subtract(const Duration(days: 30)), end: now),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(primary: AppTheme.primary),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _customFrom = picked.start;
+        _customTo = picked.end;
+        _period = 'custom';
+      });
+      _load();
+    }
+  }
+
+  static const _monthNamesFull = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA);
-    final cardColor = isDark ? AppTheme.darkCard : Colors.white;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final subtextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final text = isDark ? Colors.white : const Color(0xFF1A1D21);
+    final sub = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final card = isDark ? AppTheme.darkCard : Colors.white;
+    final div = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
+    final sh = isDark ? <BoxShadow>[] : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))];
+    final sites = context.watch<SiteProvider>().sites;
+    final now = DateTime.now();
+    final isCurrentMonth = _selectedMonth == now.month && _selectedYear == now.year;
 
     final revenueTotal = _revenue?['total'] ?? 0;
-    final revenueChange = _revenue?['variation_pct'];
     final revenueCount = _revenue?['count'] ?? 0;
     final avgBasket = _revenue?['avg_basket'] ?? 0;
 
-    final salesMixList = _salesMix?['items'] as List? ?? [];
-    final topVendorsList = _topVendors?['items'] as List? ?? [];
-
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
       body: SafeArea(
         child: Column(
           children: [
-            // ── Custom header ──
+            // Header
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
               child: Row(
                 children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: cardColor,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.06),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Icon(Icons.arrow_back_ios_new_rounded,
-                          size: 18, color: textColor),
-                    ),
+                  Container(
+                    width: 42, height: 42,
+                    decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(13)),
+                    child: const Icon(Icons.bar_chart_rounded, color: AppTheme.primary, size: 22),
                   ),
                   const SizedBox(width: 14),
-                  Text(
-                    'Rapports',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: textColor,
-                    ),
+                  Expanded(
+                    child: Text('Rapports', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: text)),
                   ),
+                  if (_refreshing || _detailsLoading)
+                    SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: sub),
+                    ),
                 ],
               ),
             ),
 
-            // ── Body ──
-            Expanded(
-              child: _loading
-                  ? Center(
-                      child: const CircularProgressIndicator(
-                        color: AppTheme.primary,
-                        strokeWidth: 2.5,
+            // Period filters
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _periodChip("Aujourd'hui", 'today', card, text, sub, sh),
+                    const SizedBox(width: 8),
+                    _periodChip('Semaine', 'week', card, text, sub, sh),
+                    const SizedBox(width: 8),
+                    _periodChip('Mois', 'month', card, text, sub, sh),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => _pickDateRange(context),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _period == 'custom' ? AppTheme.primary : card,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: _period == 'custom'
+                              ? [BoxShadow(color: AppTheme.primary.withValues(alpha: 0.25), blurRadius: 8, offset: const Offset(0, 2))]
+                              : sh,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.date_range, size: 14, color: _period == 'custom' ? Colors.white : sub),
+                            const SizedBox(width: 6),
+                            Text(
+                              _period == 'custom' && _customFrom != null
+                                  ? '${_customFrom!.day}/${_customFrom!.month} - ${_customTo!.day}/${_customTo!.month}'
+                                  : 'Personnalisé',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: _period == 'custom' ? Colors.white : sub,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    )
-                  : RefreshIndicator(
-                      color: AppTheme.primary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Month selector (only in month mode)
+            if (_period == 'month')
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.chevron_left, color: text, size: 22),
+                      onPressed: _prevMonth,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    Text(
+                      '${_monthNamesFull[_selectedMonth]} $_selectedYear',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: text),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.chevron_right, color: isCurrentMonth ? sub.withValues(alpha: 0.3) : text, size: 22),
+                      onPressed: isCurrentMonth ? null : _nextMonth,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
+              ),
+
+            // Body — always show content, numbers update in place
+            Expanded(
+              child: RefreshIndicator(
                       onRefresh: _load,
                       child: ListView(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                         children: [
-                          // ── Period filters ──
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: [
-                                for (final p in [
-                                  ('today', "Aujourd'hui"),
-                                  ('week', 'Semaine'),
-                                  ('month', 'Mois'),
-                                  ('year', 'Annee'),
-                                ])
-                                  _buildChip(p.$2, _period == p.$1, () {
-                                    setState(() => _period = p.$1);
-                                    _load();
-                                  }, isDark),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 18),
-
-                          // ── Revenue card ──
+                          // Revenue hero
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: cardColor,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: AppTheme.success.withValues(alpha: 0.25),
-                                width: 1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppTheme.success.withValues(alpha: 0.08),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
+                              gradient: const LinearGradient(colors: [Color(0xFF059669), Color(0xFF10B981)]),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [BoxShadow(color: const Color(0xFF059669).withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 6))],
                             ),
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                Text('Revenu total', style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.8))),
+                                const SizedBox(height: 6),
+                                Text(Fmt.currency(revenueTotal), style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: Colors.white)),
+                                const SizedBox(height: 14),
                                 Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                   children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.success
-                                            .withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: const Icon(
-                                          Icons.trending_up_rounded,
-                                          color: AppTheme.success,
-                                          size: 20),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      'Revenu',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 16,
-                                        color: subtextColor,
-                                      ),
-                                    ),
+                                    _heroStat('$revenueCount', 'Ventes', Icons.receipt_long),
+                                    Container(width: 1, height: 28, color: Colors.white.withValues(alpha: 0.2)),
+                                    _heroStat(Fmt.currency(avgBasket), 'Panier moy.', Icons.shopping_basket),
+                                    Container(width: 1, height: 28, color: Colors.white.withValues(alpha: 0.2)),
+                                    _heroStat('${sites.where((s) => s.isConfigured).length}', 'Sites', Icons.router),
                                   ],
                                 ),
-                                const SizedBox(height: 14),
-                                Text(
-                                  Fmt.currency(revenueTotal),
-                                  style: const TextStyle(
-                                    fontSize: 30,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppTheme.success,
-                                  ),
-                                ),
-                                if (revenueChange != null) ...[
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(
-                                          color: (revenueChange >= 0
-                                                  ? AppTheme.success
-                                                  : AppTheme.danger)
-                                              .withValues(alpha: 0.12),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          '${revenueChange >= 0 ? '+' : ''}$revenueChange%',
-                                          style: TextStyle(
-                                            color: revenueChange >= 0
-                                                ? AppTheme.success
-                                                : AppTheme.danger,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'vs periode precedente',
-                                        style: TextStyle(
-                                          color: subtextColor,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
                               ],
                             ),
                           ),
 
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 24),
 
-                          // ── Stats row ──
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.all(18),
-                                  decoration: BoxDecoration(
-                                    color: cardColor,
-                                    borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black
-                                            .withValues(alpha: 0.05),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.primary
-                                              .withValues(alpha: 0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                        ),
-                                        child: const Icon(
-                                            Icons.receipt_long_rounded,
-                                            color: AppTheme.primary,
-                                            size: 20),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        '$revenueCount',
-                                        style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w800,
-                                          color: AppTheme.primary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Ventes',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: subtextColor,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.all(18),
-                                  decoration: BoxDecoration(
-                                    color: cardColor,
-                                    borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black
-                                            .withValues(alpha: 0.05),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.info
-                                              .withValues(alpha: 0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                        ),
-                                        child: const Icon(
-                                            Icons.shopping_basket_rounded,
-                                            color: AppTheme.info,
-                                            size: 20),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        Fmt.currency(avgBasket),
-                                        style: const TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w800,
-                                          color: AppTheme.info,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Panier moyen',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: subtextColor,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                          // Ventes par site
+                          Text('Ventes par site', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: text)),
+                          const SizedBox(height: 10),
 
-                          const SizedBox(height: 22),
-
-                          // ── Sales mix ──
-                          if (salesMixList.isNotEmpty) ...[
-                            Text(
-                              'Repartition des Ventes',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 17,
-                                color: textColor,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            ...salesMixList.map((p) {
-                              final pct =
-                                  ((p['percent'] ?? p['percentage'] ?? 0) / 100)
-                                      .toDouble()
-                                      .clamp(0.0, 1.0);
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: Container(
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: cardColor,
-                                    borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black
-                                            .withValues(alpha: 0.04),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              p['profile_name'] ??
-                                                  p['name'] ??
-                                                  '',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 14,
-                                                color: textColor,
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          Text(
-                                            '${p['percent'] ?? p['percentage'] ?? 0}%',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 14,
-                                              color: AppTheme.primary,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 10),
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(6),
-                                        child: LinearProgressIndicator(
-                                          value: pct,
-                                          minHeight: 6,
-                                          backgroundColor: AppTheme.primary
-                                              .withValues(alpha: 0.1),
-                                          color: AppTheme.primary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }),
-                          ],
-
-                          const SizedBox(height: 22),
-
-                          // ── Top sites ──
-                          if (topVendorsList.isNotEmpty) ...[
-                            Text(
-                              'Meilleurs Sites',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 17,
-                                color: textColor,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: cardColor,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color:
-                                        Colors.black.withValues(alpha: 0.04),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 2),
-                                  ),
+                          if (_topSites.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.analytics_outlined, size: 36, color: sub.withValues(alpha: 0.4)),
+                                  const SizedBox(height: 8),
+                                  Text('Aucune donnée', style: TextStyle(color: sub, fontSize: 13)),
                                 ],
                               ),
-                              child: Column(
-                                children: topVendorsList
-                                    .take(10)
-                                    .indexed
-                                    .map((entry) {
-                                  final (i, v) = entry;
-                                  final isLast =
-                                      i == (topVendorsList.length.clamp(0, 10) - 1);
-                                  return Column(
-                                    children: [
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 14, vertical: 12),
+                            )
+                          else
+                            ...List.generate(_topSites.length.clamp(0, 30), (i) {
+                              final s = _topSites[i];
+                              final siteId = s['site_id'] ?? s['id'] ?? 0;
+                              final name = s['site_name'] ?? s['name'] ?? '';
+                              final rev = num.tryParse('${s['total'] ?? s['revenue'] ?? 0}') ?? 0;
+                              final count = s['count'] ?? s['sales'] ?? 0;
+                              final isExpanded = _expandedSites.contains(siteId);
+                              final points = _sitePoints[siteId] ?? [];
+                              final perPointRev = _pointRevenue[siteId] ?? {};
+                              final hasPoints = points.isNotEmpty;
+                              final colors = [AppTheme.accent, AppTheme.primary, AppTheme.info];
+
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(16), boxShadow: sh),
+                                child: Column(
+                                  children: [
+                                    // Site row — always tappable to expand/collapse
+                                    InkWell(
+                                      borderRadius: BorderRadius.circular(16),
+                                      onTap: hasPoints ? () {
+                                        setState(() {
+                                          if (isExpanded) _expandedSites.remove(siteId);
+                                          else _expandedSites.add(siteId);
+                                        });
+                                      } : null,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                         child: Row(
                                           children: [
                                             Container(
-                                              width: 32,
-                                              height: 32,
+                                              width: 34, height: 34,
                                               decoration: BoxDecoration(
-                                                color: i < 3
-                                                    ? AppTheme.accent
-                                                        .withValues(
-                                                            alpha: 0.15)
-                                                    : (isDark
-                                                        ? AppTheme.darkSurface
-                                                        : Colors
-                                                            .grey.shade100),
+                                                color: i < 3 ? colors[i].withValues(alpha: 0.12) : (isDark ? AppTheme.darkBg : Colors.grey.shade100),
                                                 shape: BoxShape.circle,
                                               ),
                                               alignment: Alignment.center,
-                                              child: Text(
-                                                '${i + 1}',
-                                                style: TextStyle(
-                                                  color: i < 3
-                                                      ? AppTheme.accent
-                                                      : subtextColor,
-                                                  fontWeight: FontWeight.w700,
-                                                  fontSize: 13,
-                                                ),
-                                              ),
+                                              child: Text('${i + 1}', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: i < 3 ? colors[i] : sub)),
                                             ),
                                             const SizedBox(width: 12),
                                             Expanded(
-                                              child: Text(
-                                                v['site_name'] ??
-                                                    v['name'] ??
-                                                    '',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize: 14,
-                                                  color: textColor,
-                                                ),
-                                                overflow:
-                                                    TextOverflow.ellipsis,
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: text), overflow: TextOverflow.ellipsis),
+                                                  Row(
+                                                    children: [
+                                                      Text('$count ventes', style: TextStyle(fontSize: 11, color: sub)),
+                                                      if (hasPoints) ...[
+                                                        Text('  ·  ', style: TextStyle(fontSize: 11, color: sub)),
+                                                        Icon(Icons.store_outlined, size: 12, color: sub),
+                                                        const SizedBox(width: 2),
+                                                        Text('${points.length} pts', style: TextStyle(fontSize: 11, color: sub)),
+                                                      ],
+                                                    ],
+                                                  ),
+                                                ],
                                               ),
                                             ),
-                                            Text(
-                                              Fmt.currency(num.tryParse(
-                                                      '${v['total'] ?? v['revenue'] ?? 0}') ??
-                                                  0),
-                                              style: const TextStyle(
-                                                color: AppTheme.success,
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 13,
-                                              ),
-                                            ),
+                                            Text(Fmt.currency(rev), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppTheme.success)),
+                                            if (hasPoints) ...[
+                                              const SizedBox(width: 4),
+                                              Icon(isExpanded ? Icons.expand_less : Icons.expand_more, size: 20, color: sub),
+                                            ] else if (_detailsLoading) ...[
+                                              const SizedBox(width: 8),
+                                              SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: sub)),
+                                            ],
                                           ],
                                         ),
                                       ),
-                                      if (!isLast)
-                                        Divider(
-                                          height: 1,
-                                          indent: 58,
-                                          color: isDark
-                                              ? AppTheme.darkBorder
-                                              : Colors.grey.shade200,
+                                    ),
+
+                                    // Expanded: Points de vente with per-point revenue
+                                    if (isExpanded && hasPoints) ...[
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                                        child: Divider(height: 1, color: div),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.store, size: 14, color: AppTheme.primary),
+                                            const SizedBox(width: 6),
+                                            Text('Points de vente', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary)),
+                                          ],
                                         ),
+                                      ),
+                                      ...points.map((point) {
+                                        final pRev = perPointRev[point.id];
+                                        final pTotal = pRev?['total'] ?? 0;
+                                        final pCount = pRev?['count'] ?? 0;
+
+                                        return Padding(
+                                          padding: const EdgeInsets.fromLTRB(28, 0, 16, 10),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                width: 6, height: 6,
+                                                decoration: BoxDecoration(
+                                                  color: point.isActive ? AppTheme.success : Colors.grey,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(point.name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: text)),
+                                                    if (pCount > 0)
+                                                      Text('$pCount ventes', style: TextStyle(fontSize: 11, color: sub)),
+                                                  ],
+                                                ),
+                                              ),
+                                              Text(
+                                                pTotal > 0 ? Fmt.currency(pTotal) : '-',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 13,
+                                                  color: pTotal > 0 ? AppTheme.success : sub,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }),
                                     ],
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                          ],
+                                  ],
+                                ),
+                              );
+                            }),
 
                           const SizedBox(height: 24),
+
+                          // Top Vendeurs
+                          if (_topVendors.isNotEmpty) ...[
+                            Text('Top vendeurs', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: text)),
+                            const SizedBox(height: 10),
+                            Container(
+                              decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(16), boxShadow: sh),
+                              child: Column(
+                                children: List.generate(_topVendors.length.clamp(0, 10), (i) {
+                                  final v = _topVendors[i];
+                                  final vName = v['site_name'] ?? v['name'] ?? v['vendor_name'] ?? '';
+                                  final vRev = num.tryParse('${v['total'] ?? v['revenue'] ?? 0}') ?? 0;
+                                  final vCount = v['count'] ?? v['sales'] ?? 0;
+                                  const medalColors = [Color(0xFFFFD700), Color(0xFFC0C0C0), Color(0xFFCD7F32)];
+
+                                  return Column(
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        child: Row(
+                                          children: [
+                                            if (i < 3)
+                                              Container(
+                                                width: 30, height: 30,
+                                                decoration: BoxDecoration(
+                                                  color: medalColors[i].withValues(alpha: 0.15),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                alignment: Alignment.center,
+                                                child: Icon(Icons.emoji_events, size: 16, color: medalColors[i]),
+                                              )
+                                            else
+                                              Container(
+                                                width: 30, height: 30,
+                                                decoration: BoxDecoration(
+                                                  color: isDark ? AppTheme.darkBg : Colors.grey.shade100,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                alignment: Alignment.center,
+                                                child: Text('${i + 1}', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: sub)),
+                                              ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(vName, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: text), overflow: TextOverflow.ellipsis),
+                                                  Text('$vCount ventes', style: TextStyle(fontSize: 11, color: sub)),
+                                                ],
+                                              ),
+                                            ),
+                                            Text(Fmt.currency(vRev), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppTheme.success)),
+                                          ],
+                                        ),
+                                      ),
+                                      if (i < _topVendors.length.clamp(0, 10) - 1)
+                                        Padding(padding: const EdgeInsets.only(left: 58), child: Divider(height: 1, color: div)),
+                                    ],
+                                  );
+                                }),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
                         ],
                       ),
                     ),
@@ -578,34 +597,47 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  Widget _buildChip(
-      String label, bool selected, VoidCallback onTap, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: selected
-                ? AppTheme.primary.withValues(alpha: 0.15)
-                : (isDark ? AppTheme.darkCard : Colors.white),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-                color: selected ? AppTheme.primary : Colors.transparent,
-                width: 1.5),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              color: selected ? AppTheme.primary : Colors.grey.shade500,
-            ),
-          ),
+  Widget _periodChip(String label, String value, Color card, Color text, Color sub, List<BoxShadow> sh) {
+    final selected = _period == value;
+    return GestureDetector(
+      onTap: () {
+        if (_period != value) {
+          setState(() => _period = value);
+          _load();
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppTheme.primary : card,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: selected
+              ? [BoxShadow(color: AppTheme.primary.withValues(alpha: 0.25), blurRadius: 8, offset: const Offset(0, 2))]
+              : sh,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: selected ? Colors.white : sub),
         ),
       ),
+    );
+  }
+
+  Widget _heroStat(String value, String label, IconData icon) {
+    return Column(
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: Colors.white.withValues(alpha: 0.7)),
+            const SizedBox(width: 4),
+            Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.6))),
+      ],
     );
   }
 }

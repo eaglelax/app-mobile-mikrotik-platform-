@@ -7,7 +7,6 @@ import '../../models/site.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/site_provider.dart';
 import '../../services/point_service_api.dart';
-import 'gerants_screen.dart';
 import 'point_form_screen.dart';
 
 class PointsListScreen extends StatefulWidget {
@@ -470,25 +469,6 @@ class _PointsListScreenState extends State<PointsListScreen> {
                       style: TextStyle(color: p.isActive ? AppTheme.success : Colors.grey, fontSize: 11, fontWeight: FontWeight.w600),
                     ),
                   ],
-                ),
-              ),
-              const SizedBox(width: 4),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => GerantsScreen(point: p),
-                    ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.person, size: 18, color: AppTheme.accent),
                 ),
               ),
             ],

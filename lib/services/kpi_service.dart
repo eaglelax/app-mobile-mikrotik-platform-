@@ -65,12 +65,18 @@ class KpiService {
     return _unwrap(await _api.get(ApiConfig.kpiSalesMix, params));
   }
 
-  Future<Map<String, dynamic>> fetchTopSites() async {
-    return _unwrap(await _api.get(ApiConfig.kpiTopSites));
+  Future<Map<String, dynamic>> fetchTopSites({int limit = 100, String? dateFrom, String? dateTo}) async {
+    final params = <String, String>{'limit': '$limit'};
+    if (dateFrom != null) params['date_from'] = dateFrom;
+    if (dateTo != null) params['date_to'] = dateTo;
+    return _unwrap(await _api.get(ApiConfig.kpiTopSites, params));
   }
 
-  Future<Map<String, dynamic>> fetchTopVendors() async {
-    return _unwrap(await _api.get(ApiConfig.kpiTopVendors));
+  Future<Map<String, dynamic>> fetchTopVendors({String? dateFrom, String? dateTo}) async {
+    final params = <String, String>{};
+    if (dateFrom != null) params['date_from'] = dateFrom;
+    if (dateTo != null) params['date_to'] = dateTo;
+    return _unwrap(await _api.get(ApiConfig.kpiTopVendors, params));
   }
 
   Future<Map<String, dynamic>> fetchRouterHealth() async {

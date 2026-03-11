@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../models/site.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/site_provider.dart';
 import '../../services/api_client.dart';
 import '../../utils/formatters.dart';
@@ -24,8 +23,6 @@ class _SalesScreenState extends State<SalesScreen> {
   bool _loading = false;
   String _period = 'today';
   Timer? _autoRefresh;
-
-  bool _autoLoaded = false;
 
   @override
   void initState() {
@@ -50,41 +47,14 @@ class _SalesScreenState extends State<SalesScreen> {
     });
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_autoLoaded && _site == null) {
-      _autoLoaded = true;
-      final auth = context.read<AuthProvider>();
-      if (auth.user?.isGerant == true && auth.user!.siteId != null) {
-        final sites = context.read<SiteProvider>().sites;
-        final match = sites.where((s) => s.id == auth.user!.siteId).toList();
-        if (match.isNotEmpty) {
-          _site = match.first;
-          _load();
-        }
-      }
-    }
-  }
-
   Future<void> _load() async {
     if (_site == null) return;
-    final auth = context.read<AuthProvider>();
-    final isGerant = auth.user?.isGerant == true;
-    final gerantPointId = auth.user?.pointId;
     setState(() => _loading = true);
     try {
       final data = await _api.get('/api/sync-sales.php', {
         'site_id': _site!.id.toString(),
       });
-      var sales = (data['sales'] as List? ?? []).cast<Map<String, dynamic>>();
-      // Filter by point_id for gerants
-      if (isGerant && gerantPointId != null) {
-        sales = sales.where((s) =>
-            s['point_id'] != null &&
-            int.tryParse(s['point_id'].toString()) == gerantPointId).toList();
-      }
-      _allSales = sales;
+      _allSales = (data['sales'] as List? ?? []).cast<Map<String, dynamic>>();
       _applyPeriodFilter();
     } catch (_) {}
     if (mounted) setState(() => _loading = false);

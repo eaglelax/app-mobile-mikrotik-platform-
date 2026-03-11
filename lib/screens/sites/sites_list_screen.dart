@@ -75,27 +75,6 @@ class _SitesListScreenState extends State<SitesListScreen> {
     }
   }
 
-  Future<void> _changeStatus(Site site, String newStatus, SiteProvider provider) async {
-    try {
-      await _siteService.updateSite(site.id, {'status': newStatus});
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Status changé en "${AppConstants.siteStatuses[newStatus] ?? newStatus}"'),
-            backgroundColor: AppTheme.success,
-          ),
-        );
-        provider.fetchSites();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
-        );
-      }
-    }
-  }
-
   List<Site> _filtered(List<Site> sites) {
     var list = sites;
     if (_search.isNotEmpty) {
@@ -312,7 +291,6 @@ class _SitesListScreenState extends State<SitesListScreen> {
                   site: site,
                   isDark: isDark,
                   onDelete: () => _deleteSite(site, siteProvider),
-                  onChangeStatus: (status) => _changeStatus(site, status, siteProvider),
                 ),
               )),
 
@@ -401,23 +379,21 @@ class _SitesListScreenState extends State<SitesListScreen> {
   }
 }
 
-Color _statusColorFor(String status) => switch (status) {
-  'configure' => AppTheme.success,
-  'maintenance' => AppTheme.warning,
-  'inactif' => AppTheme.danger,
-  _ => Colors.grey,
-};
-
 class _SiteCard extends StatelessWidget {
   final Site site;
   final bool isDark;
   final VoidCallback? onDelete;
-  final void Function(String status)? onChangeStatus;
-  const _SiteCard({required this.site, required this.isDark, this.onDelete, this.onChangeStatus});
+  const _SiteCard({required this.site, required this.isDark, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = _statusColorFor(site.status);
+    final statusColor = switch (site.status) {
+      'configure' => AppTheme.success,
+      'maintenance' => AppTheme.warning,
+      'inactif' => AppTheme.danger,
+      _ => Colors.grey,
+    };
+
     final statusLabel = AppConstants.siteStatuses[site.status] ?? site.status;
 
     return GestureDetector(
@@ -441,7 +417,7 @@ class _SiteCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top row: icon + name + status + popup menu
+            // Top row: icon + name + status
             Row(
               children: [
                 // Router icon with online indicator
@@ -507,44 +483,6 @@ class _SiteCard extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-                const SizedBox(width: 4),
-                PopupMenuButton<String>(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  icon: Icon(Icons.more_vert, size: 20, color: Colors.grey.shade600),
-                  onSelected: (value) {
-                    if (value == 'delete') {
-                      onDelete?.call();
-                    } else {
-                      onChangeStatus?.call(value);
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    for (final entry in AppConstants.siteStatuses.entries)
-                      if (entry.key != site.status)
-                        PopupMenuItem(
-                          value: entry.key,
-                          child: Row(
-                            children: [
-                              Icon(Icons.circle, size: 10, color: _statusColorFor(entry.key)),
-                              const SizedBox(width: 8),
-                              Text(entry.value),
-                            ],
-                          ),
-                        ),
-                    const PopupMenuDivider(),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete_outline, size: 18, color: AppTheme.danger),
-                          SizedBox(width: 8),
-                          Text('Supprimer', style: TextStyle(color: AppTheme.danger)),
-                        ],
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),

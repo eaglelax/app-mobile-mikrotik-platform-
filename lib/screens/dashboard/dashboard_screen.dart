@@ -6,10 +6,12 @@ import '../../providers/auth_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/site_provider.dart';
 import '../../services/kpi_service.dart';
+import '../../models/site.dart';
 import '../../utils/formatters.dart';
 import '../notifications/notifications_screen.dart';
 import '../tickets/ticket_batches_screen.dart';
 import '../flash_sale/flash_sale_screen.dart';
+import '../sites/site_detail_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -72,7 +74,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .fetchRevenue(dateFrom: monthStart, dateTo: today)
           .catchError((e) { errors.add('$e'); return <String, dynamic>{}; }),
       _kpiService
-          .fetchTopSites()
+          .fetchTopSites(dateFrom: monthStart, dateTo: today)
           .catchError((e) { errors.add('$e'); return <String, dynamic>{}; }),
     ]);
 
@@ -473,6 +475,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  void _navigateToSite(dynamic s) {
+    final siteId = s['site_id'] ?? s['id'];
+    if (siteId == null) return;
+    final id = siteId is int ? siteId : int.tryParse('$siteId');
+    if (id == null) return;
+    final allSites = context.read<SiteProvider>().sites;
+    final site = allSites.cast<Site?>().firstWhere((st) => st!.id == id, orElse: () => null);
+    if (site == null) return;
+    Navigator.push(context, MaterialPageRoute(builder: (_) => SiteDetailScreen(site: site)));
+  }
+
   Widget _buildSiteCard(dynamic s, int index, bool isDark, {required bool isTop}) {
     final name = s['site_name'] ?? s['name'] ?? '';
     final count = s['count'] ?? s['sold'] ?? 0;
@@ -480,6 +493,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: GestureDetector(
+      onTap: () => _navigateToSite(s),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
@@ -562,6 +577,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

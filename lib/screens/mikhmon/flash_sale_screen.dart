@@ -4,6 +4,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../config/theme.dart';
 import '../../models/site.dart';
 import '../../services/api_client.dart';
+import '../../services/mikhmon_service.dart';
 import '../../utils/formatters.dart';
 
 class FlashSaleScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class FlashSaleScreen extends StatefulWidget {
 }
 
 class _FlashSaleScreenState extends State<FlashSaleScreen> {
+  final _service = MikhmonService();
   List<Map<String, dynamic>> _profiles = [];
   List<Map<String, dynamic>> _points = [];
   int? _selectedPointId;

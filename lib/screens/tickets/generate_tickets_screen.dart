@@ -5,10 +5,8 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../config/theme.dart';
-import '../../models/point.dart';
 import '../../models/site.dart';
 import '../../services/mikhmon_service.dart';
-import '../../services/point_service_api.dart';
 import '../../services/ticket_service.dart';
 
 class GenerateTicketsScreen extends StatefulWidget {
@@ -22,13 +20,10 @@ class GenerateTicketsScreen extends StatefulWidget {
 class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
   final _service = MikhmonService();
   final _ticketService = TicketService();
-  final _pointService = PointServiceApi();
   final _qtyController = TextEditingController(text: '10');
 
   List<Map<String, dynamic>> _profiles = [];
-  List<Point> _points = [];
   String? _selectedProfile;
-  int? _selectedPointId;
   bool _loadingProfiles = true;
   bool _generating = false;
 
@@ -50,12 +45,9 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
 
   Future<void> _loadProfiles() async {
     try {
-      final profilesFuture = _service.fetchProfiles(widget.site.id);
-      final pointsFuture = _pointService.fetchBySite(widget.site.id);
-      final data = await profilesFuture;
+      final data = await _service.fetchProfiles(widget.site.id);
       _profiles =
           (data['profiles'] as List? ?? []).cast<Map<String, dynamic>>();
-      _points = await pointsFuture;
     } catch (_) {}
     if (mounted) setState(() => _loadingProfiles = false);
   }
@@ -81,7 +73,6 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
         widget.site.id,
         profile: _selectedProfile!,
         quantity: qty,
-        pointId: _selectedPointId,
       );
       if (mounted) {
         final tickets = (result['tickets'] as List? ?? [])
@@ -344,29 +335,6 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 20),
-                                if (_points.isNotEmpty) ...[
-                                  DropdownButtonFormField<int>(
-                                    value: _selectedPointId,
-                                    decoration: _inputDecoration('Point de vente'),
-                                    dropdownColor: _cardColor,
-                                    borderRadius: BorderRadius.circular(14),
-                                    style: TextStyle(color: _textPrimary, fontSize: 15),
-                                    items: [
-                                      DropdownMenuItem<int>(
-                                        value: null,
-                                        child: Text('Aucun (stock général)',
-                                            style: TextStyle(color: _textPrimary)),
-                                      ),
-                                      ..._points.map((p) => DropdownMenuItem<int>(
-                                            value: p.id,
-                                            child: Text(p.name),
-                                          )),
-                                    ],
-                                    onChanged: (v) =>
-                                        setState(() => _selectedPointId = v),
-                                  ),
-                                  const SizedBox(height: 16),
-                                ],
                                 DropdownButtonFormField<String>(
                                   value: _selectedProfile,
                                   decoration: _inputDecoration('Profil'),
