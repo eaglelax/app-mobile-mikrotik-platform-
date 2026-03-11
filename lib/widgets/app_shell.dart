@@ -9,7 +9,6 @@ import '../screens/sites/sites_list_screen.dart';
 import '../screens/reports/reports_screen.dart';
 import '../screens/more/more_screen.dart';
 import '../screens/flash_sale/flash_sale_screen.dart';
-import '../screens/sales/sales_screen.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -109,17 +108,17 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  // --- Restricted navigation (gerant) ---
-  final _gerantNavKeys = List.generate(4, (_) => GlobalKey<NavigatorState>());
-  final _gerantPages = const <Widget>[
-    GerantDashboardScreen(),
-    FlashSaleScreen(),
-    SalesScreen(),
-    _GerantSettingsScreen(),
+  // --- Restricted navigation (gerant) — 3 tabs ---
+  final _gerantNavKeys = List.generate(3, (_) => GlobalKey<NavigatorState>());
+  final _gerantDashKey = GlobalKey<GerantDashboardScreenState>();
+  late final _gerantPages = <Widget>[
+    GerantDashboardScreen(key: _gerantDashKey),
+    const FlashSaleScreen(),
+    const _GerantSettingsScreen(),
   ];
 
   Widget _buildGerantShell(BuildContext context, AuthProvider auth) {
-    final gerantIndex = _currentIndex.clamp(0, 3);
+    final gerantIndex = _currentIndex.clamp(0, 2);
 
     return PopScope(
       canPop: false,
@@ -133,7 +132,7 @@ class _AppShellState extends State<AppShell> {
       child: Scaffold(
         body: IndexedStack(
           index: gerantIndex,
-          children: List.generate(4, (i) => Navigator(
+          children: List.generate(3, (i) => Navigator(
             key: _gerantNavKeys[i],
             onGenerateRoute: (_) => MaterialPageRoute(
               builder: (_) => _gerantPages[i],
@@ -147,13 +146,17 @@ class _AppShellState extends State<AppShell> {
               _gerantNavKeys[i].currentState?.popUntil((route) => route.isFirst);
             } else {
               setState(() => _currentIndex = i);
+              // Refresh dashboard when switching back to Mes Ventes tab
+              if (i == 0) {
+                _gerantDashKey.currentState?.refresh();
+              }
             }
           },
           destinations: const [
             NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard),
-              label: 'Dashboard',
+              icon: Icon(Icons.receipt_long_outlined),
+              selectedIcon: Icon(Icons.receipt_long),
+              label: 'Mes Ventes',
             ),
             NavigationDestination(
               icon: Icon(Icons.flash_on_outlined),
@@ -161,13 +164,8 @@ class _AppShellState extends State<AppShell> {
               label: 'Vente Flash',
             ),
             NavigationDestination(
-              icon: Icon(Icons.receipt_long_outlined),
-              selectedIcon: Icon(Icons.receipt_long),
-              label: 'Ventes',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.settings_outlined),
-              selectedIcon: Icon(Icons.settings),
+              icon: Icon(Icons.person_outlined),
+              selectedIcon: Icon(Icons.person),
               label: 'Compte',
             ),
           ],
