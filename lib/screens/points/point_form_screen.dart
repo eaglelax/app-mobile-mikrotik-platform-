@@ -98,13 +98,36 @@ class _PointFormScreenState extends State<PointFormScreen> {
                 gerantData['username'] ?? '',
                 _gerantPasswordCtrl.text.trim(),
               );
+            } else if (mounted) {
+              final errMsg = gr['error'] ?? 'Erreur création gérant';
+              await showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Erreur gérant'),
+                  content: Text('Point sauvegardé, mais erreur gérant:\n$errMsg'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
+              );
             }
           } catch (e) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                    content: Text('Point créé, mais erreur gérant: $e'),
-                    backgroundColor: AppTheme.warning),
+              await showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Erreur gérant'),
+                  content: Text('Point sauvegardé, mais erreur gérant:\n$e'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
               );
             }
           }

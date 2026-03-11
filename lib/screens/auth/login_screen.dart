@@ -65,13 +65,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextFormField(
                     controller: _emailCtrl,
                     decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.email_outlined),
+                      labelText: 'Email ou identifiant',
+                      prefixIcon: Icon(Icons.person_outlined),
                     ),
-                    keyboardType: TextInputType.emailAddress,
+                    keyboardType: TextInputType.text,
                     textInputAction: TextInputAction.next,
                     validator: (v) =>
-                        v == null || v.isEmpty ? 'Email requis' : null,
+                        v == null || v.isEmpty ? 'Requis' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
