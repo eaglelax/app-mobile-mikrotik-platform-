@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../config/theme.dart';
 import '../../models/point.dart';
 import '../../services/gerant_service.dart';
+import '../../services/hotspot_server_service.dart';
 import '../../services/point_service_api.dart';
 
 class PointFormScreen extends StatefulWidget {
@@ -18,6 +19,7 @@ class _PointFormScreenState extends State<PointFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _service = PointServiceApi();
   final _gerantService = GerantService();
+  final _hsService = HotspotServerService();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _descCtrl;
   late final TextEditingController _contactNameCtrl;
@@ -29,6 +31,9 @@ class _PointFormScreenState extends State<PointFormScreen> {
   bool _createGerant = false;
   List<Map<String, dynamic>> _gerants = [];
   bool _loadingGerants = false;
+  List<Map<String, dynamic>> _hotspotServers = [];
+  bool _loadingServers = false;
+  int? _selectedServerId;
 
   bool get isEdit => widget.point != null;
 
@@ -50,7 +55,17 @@ class _PointFormScreenState extends State<PointFormScreen> {
     _gerantPasswordCtrl = TextEditingController();
     _type = p?.type ?? 'vendeur';
     _isActive = p?.isActive ?? true;
+    _selectedServerId = p?.hotspotServerId;
     if (isEdit) _loadGerants();
+    _loadHotspotServers();
+  }
+
+  Future<void> _loadHotspotServers() async {
+    setState(() => _loadingServers = true);
+    try {
+      _hotspotServers = await _hsService.fetchBySite(widget.siteId);
+    } catch (_) {}
+    if (mounted) setState(() => _loadingServers = false);
   }
 
   Future<void> _loadGerants() async {
@@ -74,6 +89,7 @@ class _PointFormScreenState extends State<PointFormScreen> {
         'contact_name': _contactNameCtrl.text.trim(),
         'contact_phone': _contactPhoneCtrl.text.trim(),
         'is_active': _isActive,
+        'hotspot_server_id': _selectedServerId,
       };
 
       final result = isEdit
@@ -368,6 +384,106 @@ class _PointFormScreenState extends State<PointFormScreen> {
                         );
                       }).toList(),
                     ),
+
+                    const SizedBox(height: 20),
+
+                    // ─── Hotspot Server selector ───
+                    _buildLabel('Serveur Hotspot'),
+                    const SizedBox(height: 6),
+                    if (_loadingServers)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      )
+                    else if (_hotspotServers.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(children: [
+                          Icon(Icons.info_outline, color: Colors.grey.shade400, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Aucun serveur hotspot. Synchronisez depuis le routeur.',
+                              style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () async {
+                              setState(() => _loadingServers = true);
+                              try {
+                                await _hsService.syncFromRouter(widget.siteId);
+                                await _loadHotspotServers();
+                              } catch (_) {
+                                if (mounted) setState(() => _loadingServers = false);
+                              }
+                            },
+                            child: Icon(Icons.sync, size: 18, color: AppTheme.primary),
+                          ),
+                        ]),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppTheme.darkCard : Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: isDark
+                              ? null
+                              : [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.04),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<int?>(
+                            isExpanded: true,
+                            value: _selectedServerId,
+                            hint: Text('Aucun (pas de filtrage serveur)',
+                                style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
+                            dropdownColor: isDark ? AppTheme.darkCard : Colors.white,
+                            items: [
+                              DropdownMenuItem<int?>(
+                                value: null,
+                                child: Text('Aucun',
+                                    style: TextStyle(
+                                        fontSize: 14,
+                                        color: isDark ? Colors.white70 : Colors.grey.shade600)),
+                              ),
+                              ..._hotspotServers.map((s) {
+                                final id = s['id'] is int ? s['id'] as int : int.tryParse(s['id'].toString()) ?? 0;
+                                final name = s['name'] ?? '';
+                                final iface = s['interface'] ?? '';
+                                return DropdownMenuItem<int?>(
+                                  value: id,
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.router, size: 16, color: AppTheme.primary),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          iface.isNotEmpty ? '$name ($iface)' : name,
+                                          style: TextStyle(
+                                              fontSize: 14,
+                                              color: isDark ? Colors.white : Colors.black87),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                            onChanged: (val) => setState(() => _selectedServerId = val),
+                          ),
+                        ),
+                      ),
 
                     const SizedBox(height: 20),
 

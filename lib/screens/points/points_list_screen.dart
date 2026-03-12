@@ -7,6 +7,7 @@ import '../../models/site.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/site_provider.dart';
 import '../../services/point_service_api.dart';
+import 'point_detail_screen.dart';
 import 'point_form_screen.dart';
 
 class PointsListScreen extends StatefulWidget {
@@ -382,11 +383,11 @@ class _PointsListScreenState extends State<PointsListScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GestureDetector(
         onTap: () async {
-          final edited = await Navigator.push<bool>(
+          final result = await Navigator.push<bool>(
             context,
-            MaterialPageRoute(builder: (_) => PointFormScreen(siteId: _site!.id, point: p)),
+            MaterialPageRoute(builder: (_) => PointDetailScreen(point: p, site: _site!)),
           );
-          if (edited == true) _load();
+          if (result == true) _load();
         },
         onLongPress: () => _deletePoint(p),
         child: Container(

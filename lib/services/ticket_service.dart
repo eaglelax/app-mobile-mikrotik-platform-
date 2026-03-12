@@ -50,6 +50,16 @@ class TicketService {
     });
   }
 
+  Future<Map<String, dynamic>> fetchPointTickets(int siteId, int pointId,
+      {int page = 1, int limit = 50}) async {
+    return await _api.get('/api/point-tickets.php', {
+      'site_id': siteId.toString(),
+      'point_id': pointId.toString(),
+      'page': page.toString(),
+      'limit': limit.toString(),
+    });
+  }
+
   Future<Map<String, dynamic>> fetchAutoGenBatches(int siteId) async {
     return await _api.get('/api/auto-generate-batches.php', {
       'site_id': siteId.toString(),

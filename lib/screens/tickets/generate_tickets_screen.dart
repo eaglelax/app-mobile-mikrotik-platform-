@@ -6,8 +6,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../config/theme.dart';
 import '../../models/site.dart';
+import '../../models/point.dart';
 import '../../services/mikhmon_service.dart';
 import '../../services/ticket_service.dart';
+import '../../services/point_service_api.dart';
 
 class GenerateTicketsScreen extends StatefulWidget {
   final Site site;
@@ -20,10 +22,13 @@ class GenerateTicketsScreen extends StatefulWidget {
 class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
   final _service = MikhmonService();
   final _ticketService = TicketService();
+  final _pointApi = PointServiceApi();
   final _qtyController = TextEditingController(text: '10');
 
   List<Map<String, dynamic>> _profiles = [];
-  String? _selectedProfile;
+  List<Point> _points = [];
+  Map<String, dynamic>? _selectedProfile;
+  Point? _selectedPoint;
   bool _loadingProfiles = true;
   bool _generating = false;
 
@@ -34,7 +39,7 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProfiles();
+    _loadData();
   }
 
   @override
@@ -43,11 +48,18 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
     super.dispose();
   }
 
-  Future<void> _loadProfiles() async {
+  Future<void> _loadData() async {
     try {
-      final data = await _service.fetchProfiles(widget.site.id);
-      _profiles =
-          (data['profiles'] as List? ?? []).cast<Map<String, dynamic>>();
+      final results = await Future.wait([
+        _service.fetchProfiles(widget.site.id),
+        _pointApi.fetchBySite(widget.site.id),
+      ]);
+      final profileData = results[0] as Map<String, dynamic>;
+      if (profileData['success'] == true) {
+        _profiles =
+            (profileData['profiles'] as List? ?? []).cast<Map<String, dynamic>>();
+      }
+      _points = results[1] as List<Point>;
     } catch (_) {}
     if (mounted) setState(() => _loadingProfiles = false);
   }
@@ -60,19 +72,21 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
       return;
     }
     final qty = int.tryParse(_qtyController.text) ?? 0;
-    if (qty < 1 || qty > 200) {
+    if (qty < 1 || qty > 2000) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Quantité entre 1 et 200')),
+        const SnackBar(content: Text('Quantité entre 1 et 2000')),
       );
       return;
     }
 
     setState(() => _generating = true);
     try {
+      final profileName = _selectedProfile!['name'] as String;
       final result = await _ticketService.generateBatch(
         widget.site.id,
-        profile: _selectedProfile!,
+        profile: profileName,
         quantity: qty,
+        pointId: _selectedPoint?.id,
       );
       if (mounted) {
         final tickets = (result['tickets'] as List? ?? [])
@@ -219,32 +233,9 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
 
   Color get _bg => _isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA);
   Color get _cardColor => _isDark ? AppTheme.darkCard : Colors.white;
-  Color get _fieldFill => _isDark ? AppTheme.darkCard : Colors.white;
   Color get _textPrimary => _isDark ? Colors.white : Colors.black87;
   Color get _textSecondary =>
       _isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-
-  InputDecoration _inputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: TextStyle(color: _textSecondary, fontSize: 14),
-      filled: true,
-      fillColor: _fieldFill,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
-      ),
-    );
-  }
 
   BoxDecoration get _containerDecoration => BoxDecoration(
         color: _cardColor,
@@ -292,7 +283,34 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
     return _buildFormScreen();
   }
 
+  Widget _dropdownContainer({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: _isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _qtyButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44, height: 44,
+        decoration: BoxDecoration(
+          color: _isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, size: 20, color: _isDark ? Colors.white70 : Colors.grey.shade700),
+      ),
+    );
+  }
+
   Widget _buildFormScreen() {
+    final activePoints = _points.where((p) => p.isActive).toList();
+
     return Scaffold(
       backgroundColor: _bg,
       body: SafeArea(
@@ -313,9 +331,30 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                   ? const Center(child: CircularProgressIndicator())
                   : _profiles.isEmpty
                       ? Center(
-                          child: Text(
-                            'Aucun profil disponible',
-                            style: TextStyle(color: _textSecondary),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.warning.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                  const Icon(Icons.warning_amber, color: AppTheme.warning, size: 18),
+                                  const SizedBox(width: 8),
+                                  const Text('Aucun profil disponible', style: TextStyle(fontSize: 13)),
+                                  const SizedBox(width: 8),
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() => _loadingProfiles = true);
+                                      _loadData();
+                                    },
+                                    child: const Icon(Icons.refresh, size: 18),
+                                  ),
+                                ]),
+                              ),
+                            ],
                           ),
                         )
                       : SingleChildScrollView(
@@ -324,7 +363,7 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                             decoration: _containerDecoration,
                             padding: const EdgeInsets.all(20),
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   'Configuration',
@@ -334,45 +373,170 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                                     color: _textPrimary,
                                   ),
                                 ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Les tickets seront créés sur le routeur hotspot',
+                                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                                ),
                                 const SizedBox(height: 20),
-                                DropdownButtonFormField<String>(
-                                  value: _selectedProfile,
-                                  decoration: _inputDecoration('Profil'),
-                                  dropdownColor: _cardColor,
-                                  borderRadius: BorderRadius.circular(14),
-                                  style: TextStyle(
-                                      color: _textPrimary, fontSize: 15),
-                                  items: _profiles.map((p) {
-                                    final name =
-                                        (p['name'] ?? '') as String;
-                                    final price = p['ticket_price'];
-                                    final label = price != null
-                                        ? '$name ($price FCFA)'
-                                        : name;
-                                    return DropdownMenuItem<String>(
-                                      value: name,
-                                      child: Text(label),
-                                    );
-                                  }).toList(),
-                                  onChanged: (v) =>
-                                      setState(() => _selectedProfile = v),
+
+                                // Profile selector
+                                Text('Profil', style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600,
+                                  color: _isDark ? Colors.white70 : Colors.grey.shade700,
+                                )),
+                                const SizedBox(height: 8),
+                                _dropdownContainer(
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      isExpanded: true,
+                                      value: _selectedProfile?['name'] as String?,
+                                      hint: Text('Choisir un profil', style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
+                                      dropdownColor: _isDark ? AppTheme.darkCard : Colors.white,
+                                      items: _profiles.map((p) {
+                                        final name = p['name'] ?? '';
+                                        final price = p['ticket_price'];
+                                        final stock = p['stock'];
+                                        final stockLabel = stock != null ? ' ($stock)' : '';
+                                        final priceLabel = price != null && price > 0 ? ' - ${price.toStringAsFixed(0)} FCFA' : '';
+                                        return DropdownMenuItem(
+                                          value: name as String,
+                                          child: Text('$name$priceLabel$stockLabel',
+                                              style: TextStyle(fontSize: 14, color: _isDark ? Colors.white : Colors.black87),
+                                              overflow: TextOverflow.ellipsis),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        setState(() {
+                                          _selectedProfile = _profiles.firstWhere((p) => p['name'] == val);
+                                          final suggestion = _selectedProfile?['suggestion'];
+                                          if (suggestion != null && suggestion > 0) {
+                                            _qtyController.text = suggestion.toString();
+                                          }
+                                        });
+                                      },
+                                    ),
+                                  ),
                                 ),
+
                                 const SizedBox(height: 16),
-                                TextFormField(
-                                  controller: _qtyController,
-                                  keyboardType: TextInputType.number,
-                                  style: TextStyle(
-                                      color: _textPrimary, fontSize: 15),
-                                  decoration:
-                                      _inputDecoration('Quantité (1-200)'),
+
+                                // Point de vente selector
+                                Text('Point de vente', style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600,
+                                  color: _isDark ? Colors.white70 : Colors.grey.shade700,
+                                )),
+                                const SizedBox(height: 8),
+                                if (activePoints.isEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: _isDark ? Colors.grey.shade800 : const Color(0xFFF5F6FA),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(children: [
+                                      Icon(Icons.info_outline, size: 16, color: Colors.grey.shade400),
+                                      const SizedBox(width: 8),
+                                      Text('Aucun point de vente configuré', style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
+                                    ]),
+                                  )
+                                else
+                                  _dropdownContainer(
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<int>(
+                                        isExpanded: true,
+                                        value: _selectedPoint?.id,
+                                        hint: Text('Tous (optionnel)', style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
+                                        dropdownColor: _isDark ? AppTheme.darkCard : Colors.white,
+                                        items: [
+                                          DropdownMenuItem<int>(
+                                            value: null,
+                                            child: Text('Tous les points', style: TextStyle(fontSize: 14, color: Colors.grey.shade400)),
+                                          ),
+                                          ...activePoints.map((p) {
+                                            final serverLabel = p.serverName != null ? ' (${p.serverName})' : '';
+                                            return DropdownMenuItem<int>(
+                                              value: p.id,
+                                              child: Text('${p.name}$serverLabel',
+                                                  style: TextStyle(fontSize: 14, color: _isDark ? Colors.white : Colors.black87),
+                                                  overflow: TextOverflow.ellipsis),
+                                            );
+                                          }),
+                                        ],
+                                        onChanged: (val) {
+                                          setState(() {
+                                            _selectedPoint = val != null
+                                                ? activePoints.firstWhere((p) => p.id == val)
+                                                : null;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ),
+
+                                // Show associated hotspot server info
+                                if (_selectedPoint?.serverName != null) ...[
+                                  const SizedBox(height: 6),
+                                  Row(children: [
+                                    Icon(Icons.wifi, size: 14, color: AppTheme.primary.withValues(alpha: 0.7)),
+                                    const SizedBox(width: 6),
+                                    Text('Serveur hotspot: ${_selectedPoint!.serverName}',
+                                        style: TextStyle(fontSize: 12, color: AppTheme.primary.withValues(alpha: 0.7))),
+                                  ]),
+                                ],
+
+                                const SizedBox(height: 16),
+
+                                // Quantity input with +/- buttons
+                                Text('Quantité', style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600,
+                                  color: _isDark ? Colors.white70 : Colors.grey.shade700,
+                                )),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    _qtyButton(Icons.remove, () {
+                                      final current = int.tryParse(_qtyController.text) ?? 10;
+                                      if (current > 1) {
+                                        setState(() => _qtyController.text = (current - 5).clamp(1, 2000).toString());
+                                      }
+                                    }),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _qtyController,
+                                        keyboardType: TextInputType.number,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 18, fontWeight: FontWeight.w700,
+                                          color: _isDark ? Colors.white : Colors.black87,
+                                        ),
+                                        decoration: InputDecoration(
+                                          filled: true,
+                                          fillColor: _isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                            borderSide: BorderSide.none,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    _qtyButton(Icons.add, () {
+                                      final current = int.tryParse(_qtyController.text) ?? 10;
+                                      setState(() => _qtyController.text = (current + 5).clamp(1, 2000).toString());
+                                    }),
+                                  ],
                                 ),
+
                                 const SizedBox(height: 28),
                                 SizedBox(
                                   width: double.infinity,
                                   height: 52,
                                   child: ElevatedButton.icon(
                                     onPressed:
-                                        _generating ? null : _generate,
+                                        (_generating || _selectedProfile == null) ? null : _generate,
                                     icon: _generating
                                         ? const SizedBox(
                                             width: 18,
@@ -387,10 +551,10 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                                     label: Text(
                                       _generating
                                           ? 'Génération...'
-                                          : 'Générer',
+                                          : 'Générer les tickets',
                                       style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
                                         color: Colors.white,
                                       ),
                                     ),
@@ -398,10 +562,10 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                                       backgroundColor: AppTheme.primary,
                                       disabledBackgroundColor: AppTheme
                                           .primary
-                                          .withValues(alpha: 0.5),
+                                          .withValues(alpha: 0.4),
                                       shape: RoundedRectangleBorder(
                                         borderRadius:
-                                            BorderRadius.circular(16),
+                                            BorderRadius.circular(14),
                                       ),
                                       elevation: 0,
                                     ),

@@ -127,6 +127,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
     setState(() => _detailsLoading = true);
     // Don't clear — old data stays visible until replaced
 
+    // Always use 'custom' period with explicit dates to ensure correct filtering
+    const reportPeriod = 'custom';
+
     for (final site in sites.where((s) => s.isConfigured)) {
       if (!mounted) return;
 
@@ -139,30 +142,30 @@ class _ReportsScreenState extends State<ReportsScreen> {
         }
       } catch (_) {}
 
-      // Load sales for the site and aggregate per point
+      // Load per-point revenue from report-sales API (proper filtering: void=false, price-discount, no LIMIT)
       try {
-        final salesResp = await _api.get('/api/sync-sales.php', {
+        final reportResp = await _api.get('/api/report-sales.php', {
           'site_id': site.id.toString(),
+          'period': reportPeriod,
+          'date_from': dateFrom,
+          'date_to': dateTo,
         });
-        final allSales = (salesResp['sales'] as List?) ?? [];
 
-        // Filter by date range and aggregate per point_id
-        final perPoint = <int, Map<String, num>>{};
-        for (final s in allSales) {
-          final saleDate = s['sale_date']?.toString() ?? '';
-          // Only include sales within date range
-          if (saleDate.compareTo(dateFrom) >= 0 && saleDate.compareTo('$dateTo 23:59:59') <= 0) {
-            final pid = int.tryParse('${s['point_id'] ?? 0}') ?? 0;
-            final amount = num.tryParse('${s['price'] ?? s['amount'] ?? 0}') ?? 0;
-            perPoint.putIfAbsent(pid, () => {'total': 0, 'count': 0});
-            perPoint[pid]!['total'] = (perPoint[pid]!['total'] ?? 0) + amount;
-            perPoint[pid]!['count'] = (perPoint[pid]!['count'] ?? 0) + 1;
+        if (reportResp['success'] == true) {
+          final byPoint = (reportResp['by_point'] as List?) ?? [];
+          final perPoint = <int, Map<String, num>>{};
+
+          for (final p in byPoint) {
+            final pid = int.tryParse('${p['point_id'] ?? 0}') ?? 0;
+            final total = num.tryParse('${p['total'] ?? 0}') ?? 0;
+            final count = num.tryParse('${p['count'] ?? 0}') ?? 0;
+            perPoint[pid] = {'total': total, 'count': count};
           }
-        }
 
-        if (mounted) {
-          _pointRevenue[site.id] = perPoint;
-          setState(() {});
+          if (mounted) {
+            _pointRevenue[site.id] = perPoint;
+            setState(() {});
+          }
         }
       } catch (_) {}
     }

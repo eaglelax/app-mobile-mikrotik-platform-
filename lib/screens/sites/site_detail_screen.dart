@@ -12,7 +12,7 @@ import '../mikhmon/quick_print_screen.dart';
 import '../mikhmon/traffic_screen.dart';
 import '../mikhmon/hotspot_servers_screen.dart';
 import '../mikhmon/dhcp_leases_screen.dart';
-import '../mikhmon/hotspot_user_add_screen.dart';
+import '../points/points_list_screen.dart';
 import '../mikhmon/system_controls_screen.dart';
 import '../mikhmon/logs_screen.dart';
 import '../mikhmon/hotspot_cookies_screen.dart';
@@ -268,10 +268,10 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: _quickActionTile(
-                                  Icons.person_add,
-                                  'Ajouter',
+                                  Icons.storefront,
+                                  'Points',
                                   AppTheme.success,
-                                  () => _push(HotspotUserAddScreen(site: site)),
+                                  () => _push(PointsListScreen(site: site)),
                                   isDark, cardColor, textColor, shadow,
                                 ),
                               ),
