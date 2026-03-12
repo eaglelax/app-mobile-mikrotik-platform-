@@ -20,6 +20,15 @@ class _UserFormScreenState extends State<UserFormScreen> {
   bool _isActive = true;
   bool _loading = false;
 
+  // Quotas & Features
+  late final TextEditingController _maxSitesCtrl;
+  late final TextEditingController _maxVpnCtrl;
+  late final TextEditingController _maxPointsCtrl;
+  bool _featureMikhmon = false;
+  bool _featureStatistics = false;
+  bool _featureAutogenerate = false;
+  bool _loadingFeatures = false;
+
   bool get isEdit => widget.user != null;
 
   @override
@@ -31,6 +40,32 @@ class _UserFormScreenState extends State<UserFormScreen> {
     _passCtrl = TextEditingController();
     _role = u?['role'] ?? 'user';
     _isActive = u?['status'] == 'active' || u == null;
+    _maxSitesCtrl = TextEditingController(text: '1');
+    _maxVpnCtrl = TextEditingController(text: '0');
+    _maxPointsCtrl = TextEditingController(text: '0');
+    if (isEdit) _loadFeatures();
+  }
+
+  Future<void> _loadFeatures() async {
+    setState(() => _loadingFeatures = true);
+    try {
+      final result = await _api.post('/api/users-bulk.php', {
+        'action': 'get-features',
+        'user_id': widget.user!['id'],
+      });
+      if (mounted && result['features'] != null) {
+        final f = result['features'];
+        setState(() {
+          _maxSitesCtrl.text = '${f['max_sites'] ?? 1}';
+          _maxVpnCtrl.text = '${f['max_vpn'] ?? 0}';
+          _maxPointsCtrl.text = '${f['max_points'] ?? 0}';
+          _featureMikhmon = f['feature_mikhmon'] == true || f['feature_mikhmon'] == 1;
+          _featureStatistics = f['feature_statistics'] == true || f['feature_statistics'] == 1;
+          _featureAutogenerate = f['feature_autogenerate'] == true || f['feature_autogenerate'] == 1;
+        });
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loadingFeatures = false);
   }
 
   Future<void> _submit() async {
@@ -38,6 +73,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
     setState(() => _loading = true);
 
     try {
+      // 1. Save user info
       final data = {
         'action': isEdit ? 'update' : 'create',
         'name': _nameCtrl.text.trim(),
@@ -50,16 +86,28 @@ class _UserFormScreenState extends State<UserFormScreen> {
 
       final result = await _api.post('/api/users-bulk.php', data);
 
-      if (mounted) {
-        if (result['success'] == true) {
-          Navigator.pop(context, true);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(result['error'] ?? 'Erreur'),
-                backgroundColor: AppTheme.danger),
-          );
+      if (mounted && result['success'] == true) {
+        // 2. Save features/quotas
+        final userId = isEdit ? widget.user!['id'] : result['user_id'];
+        if (userId != null) {
+          try {
+            await _api.post('/api/users-bulk.php', {
+              'action': 'update-features',
+              'user_id': userId,
+              'max_sites': int.tryParse(_maxSitesCtrl.text) ?? 1,
+              'max_vpn': int.tryParse(_maxVpnCtrl.text) ?? 0,
+              'max_points': int.tryParse(_maxPointsCtrl.text) ?? 0,
+              'feature_mikhmon': _featureMikhmon,
+              'feature_statistics': _featureStatistics,
+              'feature_autogenerate': _featureAutogenerate,
+            });
+          } catch (_) {}
         }
+        Navigator.pop(context, true);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['error'] ?? 'Erreur'), backgroundColor: AppTheme.danger),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -93,6 +141,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : const Color(0xFF1A1D21);
+    final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
     final cardColor = isDark ? AppTheme.darkCard : Colors.white;
     final shadow = isDark
         ? <BoxShadow>[]
@@ -141,12 +190,14 @@ class _UserFormScreenState extends State<UserFormScreen> {
                             TextFormField(
                               controller: _nameCtrl,
                               decoration: _inputDeco('Nom *', Icons.person_outline, isDark),
+                              style: TextStyle(color: textColor),
                               validator: (v) => v == null || v.isEmpty ? 'Requis' : null,
                             ),
                             const SizedBox(height: 14),
                             TextFormField(
                               controller: _emailCtrl,
                               decoration: _inputDeco('Email *', Icons.email_outlined, isDark),
+                              style: TextStyle(color: textColor),
                               keyboardType: TextInputType.emailAddress,
                               validator: (v) => v != null && v.contains('@') ? null : 'Email invalide',
                             ),
@@ -159,10 +210,11 @@ class _UserFormScreenState extends State<UserFormScreen> {
                                 isDark,
                                 hint: isEdit ? 'Laisser vide pour ne pas changer' : null,
                               ),
+                              style: TextStyle(color: textColor),
                               obscureText: true,
                               validator: isEdit
                                   ? null
-                                  : (v) => v != null && v.length >= 6 ? null : 'Minimum 6 caractères',
+                                  : (v) => v != null && v.length >= 6 ? null : 'Minimum 6 caracteres',
                             ),
                           ],
                         ),
@@ -170,8 +222,8 @@ class _UserFormScreenState extends State<UserFormScreen> {
 
                       const SizedBox(height: 20),
 
-                      // Rôle & Statut section
-                      Text('Rôle & Statut', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textColor)),
+                      // Role & Statut
+                      Text('Role & Statut', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textColor)),
                       const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.all(16),
@@ -180,8 +232,9 @@ class _UserFormScreenState extends State<UserFormScreen> {
                           children: [
                             DropdownButtonFormField<String>(
                               initialValue: _role,
-                              decoration: _inputDeco('Rôle', Icons.admin_panel_settings_outlined, isDark),
+                              decoration: _inputDeco('Role', Icons.admin_panel_settings_outlined, isDark),
                               dropdownColor: cardColor,
+                              style: TextStyle(color: textColor, fontSize: 16),
                               items: const [
                                 DropdownMenuItem(value: 'user', child: Text('Utilisateur')),
                                 DropdownMenuItem(value: 'admin', child: Text('Administrateur')),
@@ -192,8 +245,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
                             Row(
                               children: [
                                 Container(
-                                  width: 34,
-                                  height: 34,
+                                  width: 34, height: 34,
                                   decoration: BoxDecoration(
                                     color: _isActive ? AppTheme.success.withValues(alpha: 0.12) : Colors.grey.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(10),
@@ -201,9 +253,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
                                   child: Icon(Icons.power_settings_new, size: 18, color: _isActive ? AppTheme.success : Colors.grey),
                                 ),
                                 const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text('Compte actif', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: textColor)),
-                                ),
+                                Expanded(child: Text('Compte actif', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: textColor))),
                                 Switch.adaptive(
                                   value: _isActive,
                                   onChanged: (v) => setState(() => _isActive = v),
@@ -213,6 +263,50 @@ class _UserFormScreenState extends State<UserFormScreen> {
                             ),
                           ],
                         ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Quotas section
+                      Text('Quotas', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textColor)),
+                      const SizedBox(height: 4),
+                      Text('0 = desactive, 999 = illimite', style: TextStyle(fontSize: 11, color: subtitleColor)),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: shadow),
+                        child: _loadingFeatures
+                            ? const Center(child: Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))))
+                            : Column(
+                                children: [
+                                  _quotaRow('Sites max', Icons.router_outlined, _maxSitesCtrl, textColor, isDark),
+                                  const SizedBox(height: 14),
+                                  _quotaRow('Tunnels VPN max', Icons.vpn_lock_outlined, _maxVpnCtrl, textColor, isDark),
+                                  const SizedBox(height: 14),
+                                  _quotaRow('Points de vente max', Icons.store_outlined, _maxPointsCtrl, textColor, isDark),
+                                ],
+                              ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Features section
+                      Text('Fonctionnalites', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textColor)),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: shadow),
+                        child: _loadingFeatures
+                            ? const Center(child: Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))))
+                            : Column(
+                                children: [
+                                  _featureToggle('Mikhmon', 'Dashboard routeur, vouchers, ventes', Icons.dashboard_outlined, AppTheme.accent, _featureMikhmon, (v) => setState(() => _featureMikhmon = v), textColor, subtitleColor),
+                                  Divider(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                                  _featureToggle('Statistiques', 'Rapports, graphiques, exports', Icons.bar_chart_rounded, AppTheme.info, _featureStatistics, (v) => setState(() => _featureStatistics = v), textColor, subtitleColor),
+                                  Divider(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                                  _featureToggle('Auto-generation', 'Generation automatique de tickets', Icons.auto_awesome, AppTheme.success, _featureAutogenerate, (v) => setState(() => _featureAutogenerate = v), textColor, subtitleColor),
+                                ],
+                              ),
                       ),
 
                       const SizedBox(height: 24),
@@ -230,9 +324,11 @@ class _UserFormScreenState extends State<UserFormScreen> {
                           ),
                           child: _loading
                               ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : Text(isEdit ? 'Enregistrer' : 'Créer', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                              : Text(isEdit ? 'Enregistrer' : 'Creer', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                         ),
                       ),
+
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
@@ -244,11 +340,73 @@ class _UserFormScreenState extends State<UserFormScreen> {
     );
   }
 
+  Widget _quotaRow(String label, IconData icon, TextEditingController ctrl, Color textColor, bool isDark) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: Colors.grey.shade500),
+        const SizedBox(width: 12),
+        Expanded(child: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: textColor))),
+        SizedBox(
+          width: 80,
+          height: 42,
+          child: TextFormField(
+            controller: ctrl,
+            textAlign: TextAlign.center,
+            keyboardType: TextInputType.number,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textColor),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _featureToggle(String title, String subtitle, IconData icon, Color color, bool value, ValueChanged<bool> onChanged, Color textColor, Color subtitleColor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 34, height: 34,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
+                Text(subtitle, style: TextStyle(fontSize: 11, color: subtitleColor)),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: value,
+            onChanged: onChanged,
+            activeTrackColor: color,
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _passCtrl.dispose();
+    _maxSitesCtrl.dispose();
+    _maxVpnCtrl.dispose();
+    _maxPointsCtrl.dispose();
     super.dispose();
   }
 }

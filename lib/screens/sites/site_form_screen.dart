@@ -4,6 +4,7 @@ import '../../config/theme.dart';
 import '../../models/site.dart';
 import '../../providers/site_provider.dart';
 import '../../services/site_service.dart';
+import '../../services/tunnel_service.dart';
 import '../../utils/constants.dart';
 
 class SiteFormScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class SiteFormScreen extends StatefulWidget {
 class _SiteFormScreenState extends State<SiteFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _service = SiteService();
+  final _tunnelService = TunnelService();
   late final TextEditingController _nomCtrl;
   late final TextEditingController _descCtrl;
   late final TextEditingController _ipCtrl;
@@ -26,6 +28,11 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
   String _typeActivite = 'other';
   String _currency = 'XOF';
   bool _loading = false;
+
+  // Tunnel association
+  List<Map<String, dynamic>> _availableTunnels = [];
+  int? _selectedTunnelId;
+  bool _loadingTunnels = true;
 
   bool get isEdit => widget.site != null;
 
@@ -41,6 +48,35 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
     _passCtrl = TextEditingController(text: s?.routerPassword ?? '');
     _typeActivite = s?.typeActivite ?? 'other';
     _currency = s?.currency ?? 'XOF';
+    _loadTunnels();
+  }
+
+  Future<void> _loadTunnels() async {
+    try {
+      final data = await _tunnelService.fetchAll();
+      final tunnels = (data['tunnels'] ?? data['peers'] ?? []) as List;
+      if (mounted) {
+        setState(() {
+          // Show unlinked tunnels + tunnel already linked to this site (for edit)
+          _availableTunnels = tunnels.cast<Map<String, dynamic>>().where((t) {
+            final siteId = t['site_id'];
+            return siteId == null || (isEdit && siteId.toString() == widget.site!.id.toString());
+          }).toList();
+          // Pre-select tunnel if editing and site has one
+          if (isEdit) {
+            for (final t in tunnels) {
+              if (t['site_id']?.toString() == widget.site!.id.toString()) {
+                _selectedTunnelId = int.tryParse(t['id'].toString());
+                break;
+              }
+            }
+          }
+          _loadingTunnels = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingTunnels = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -63,6 +99,13 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
       final result = await _service.createSite(data);
       if (mounted) {
         if (result['success'] == true) {
+          // Associate tunnel if selected
+          final siteId = result['site_id'] ?? (isEdit ? widget.site!.id : null);
+          if (_selectedTunnelId != null && siteId != null) {
+            try {
+              await _tunnelService.associate(_selectedTunnelId!, int.parse(siteId.toString()));
+            } catch (_) {}
+          }
           context.read<SiteProvider>().fetchSites();
           Navigator.pop(context, true);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -267,6 +310,44 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
                             style: TextStyle(color: textColor),
                             obscureText: true,
                           ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Tunnel VPN section
+                      _SectionContainer(
+                        isDark: isDark,
+                        title: 'Tunnel VPN (optionnel)',
+                        children: [
+                          if (_loadingTunnels)
+                            const Center(child: Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+                            ))
+                          else if (_availableTunnels.isEmpty)
+                            Text('Aucun tunnel disponible', style: TextStyle(fontSize: 13, color: isDark ? Colors.grey[400] : Colors.grey[600]))
+                          else
+                            DropdownButtonFormField<int>(
+                              value: _selectedTunnelId,
+                              decoration: _inputDecoration('Associer un tunnel', isDark: isDark),
+                              dropdownColor: isDark ? AppTheme.darkCard : Colors.white,
+                              style: TextStyle(color: textColor, fontSize: 16),
+                              icon: Icon(Icons.keyboard_arrow_down_rounded, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                              items: [
+                                DropdownMenuItem<int>(value: null, child: Text('Aucun', style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]))),
+                                ..._availableTunnels.map((t) {
+                                  final id = int.tryParse(t['id'].toString()) ?? 0;
+                                  final label = t['tunnel_label'] ?? t['tunnel_name'] ?? 'Tunnel #$id';
+                                  final vpnIp = t['vpn_ip'] ?? '';
+                                  return DropdownMenuItem<int>(
+                                    value: id,
+                                    child: Text('$label ($vpnIp)', overflow: TextOverflow.ellipsis),
+                                  );
+                                }),
+                              ],
+                              onChanged: (v) => setState(() => _selectedTunnelId = v),
+                            ),
                         ],
                       ),
 

@@ -5,6 +5,7 @@ import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/tunnel_service.dart';
 import 'tunnel_form_screen.dart';
+import 'tunnel_detail_screen.dart';
 
 class TunnelsScreen extends StatefulWidget {
   const TunnelsScreen({super.key});
@@ -329,6 +330,7 @@ class _TunnelsScreenState extends State<TunnelsScreen> {
         final statusColor = isActive ? AppTheme.success : Colors.grey;
 
         return GestureDetector(
+          onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => TunnelDetailScreen(tunnel: t))),
           onLongPress: () => _deleteTunnel(t),
           child: Container(
             margin: const EdgeInsets.only(bottom: 12),
