@@ -142,15 +142,15 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
         color: isDark ? Colors.grey[600] : Colors.grey[400],
       ),
       filled: true,
-      fillColor: isDark ? AppTheme.darkCard : Colors.white,
+      fillColor: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
