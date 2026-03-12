@@ -401,15 +401,16 @@ class _ProfilesListScreenState extends State<ProfilesListScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 4),
-                    Row(
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
-                        _infoBadge('${p['ticket_price'] ?? '-'}', Icons.sell_rounded, AppTheme.accent),
-                        const SizedBox(width: 8),
+                        _infoBadge(_formatPrice(p['ticket_price']), Icons.sell_rounded, const Color(0xFF10B981)),
                         _infoBadge('${p['validity'] ?? '-'}', Icons.timer_rounded, AppTheme.info),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Row(
                       children: [
                         Icon(Icons.inventory_2_rounded, size: 13, color: Colors.grey.shade400),
@@ -455,6 +456,19 @@ class _ProfilesListScreenState extends State<ProfilesListScreen> {
         ),
       ),
     );
+  }
+
+  String _formatPrice(dynamic price) {
+    if (price == null) return 'Gratuit';
+    final val = price is num ? price.toInt() : int.tryParse(price.toString()) ?? 0;
+    if (val <= 0) return 'Gratuit';
+    final s = val.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(' ');
+      buf.write(s[i]);
+    }
+    return '${buf.toString()} FCFA';
   }
 
   Widget _infoBadge(String text, IconData icon, Color color) {
