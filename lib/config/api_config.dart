@@ -54,6 +54,9 @@ class ApiConfig {
   // Gerants
   static const String gerants = '/api/gerants.php';
 
+  // Gateway proxy (secure temporary links)
+  static const String gatewayProxy = '/api/gateway-proxy.php';
+
   // Health
   static const String healthRouters = '/api/health/routers.php';
   static const String healthVpn = '/api/health/vpn.php';
