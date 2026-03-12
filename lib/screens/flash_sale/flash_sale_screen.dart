@@ -152,14 +152,6 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
     setState(() => _generating = false);
   }
 
-  num get _todayTotal {
-    num t = 0;
-    for (final s in _salesHistory) {
-      t += num.tryParse('${s['price'] ?? s['ticket_price'] ?? 0}') ?? 0;
-    }
-    return t;
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -372,11 +364,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
   // ═══════════════════════════════════════════════════════════════════════
   Widget _profileView(bool isDark, Color card, Color text, Color sub) {
     final sh = _sh(isDark);
-    final div = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
-    final colors = [
-      const Color(0xFF2563EB), const Color(0xFF059669), const Color(0xFFF59E0B),
-      const Color(0xFF7C3AED), const Color(0xFFEC4899), const Color(0xFF06B6D4),
-    ];
+    final divCol = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
 
     return Column(
       children: [
@@ -481,7 +469,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
               children: [
-                // ── Profile cards: horizontal scroll ──
+                // ── Profile cards: grid 3 columns ──
                 if (_profiles.isEmpty)
                   _emptyState(Icons.wifi_off_rounded, 'Aucun profil disponible', sub)
                 else ...[
@@ -493,136 +481,79 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  SizedBox(
-                    height: 140,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _profiles.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 10),
-                      itemBuilder: (_, i) {
-                        final p = _profiles[i];
-                        final price = p['ticket_price'];
-                        final currency = p['currency'] ?? 'XOF';
-                        final name = p['name'] ?? '';
-                        final validity = p['validity_value'];
-                        final unit = p['validity_unit'];
-                        final uMap = {'hours': 'h', 'days': 'j', 'weeks': 'sem', 'months': 'mois'};
-                        final dur = validity != null ? '$validity${uMap[unit] ?? ''}' : 'Illimité';
-                        final c = colors[i % colors.length];
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                      childAspectRatio: 0.78,
+                    ),
+                    itemCount: _profiles.length,
+                    itemBuilder: (_, i) {
+                      final p = _profiles[i];
+                      final price = p['ticket_price'];
+                      final currency = p['currency'] ?? 'XOF';
+                      final name = p['name'] ?? '';
+                      final validity = p['validity_value'];
+                      final unit = p['validity_unit'];
+                      final uMap = {'hours': 'h', 'days': 'j', 'weeks': 'sem', 'months': 'mois'};
+                      final dur = validity != null ? '$validity${uMap[unit] ?? ''}' : 'Illimité';
 
-                        return GestureDetector(
+                      return Material(
+                        color: card,
+                        borderRadius: BorderRadius.circular(16),
+                        child: InkWell(
                           onTap: _generating ? null : () => _generate(name),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            width: 130,
-                            padding: const EdgeInsets.all(14),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [c, c.withValues(alpha: 0.75)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(18),
-                              boxShadow: [
-                                BoxShadow(color: c.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4)),
-                              ],
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: sh,
                             ),
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                // Icon
                                 Container(
-                                  width: 32, height: 32,
+                                  width: 36, height: 36,
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(10),
+                                    color: AppTheme.primary.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(11),
                                   ),
-                                  child: const Icon(Icons.wifi_rounded, color: Colors.white, size: 18),
+                                  child: const Icon(Icons.wifi_rounded, color: AppTheme.primary, size: 18),
                                 ),
-                                const Spacer(),
-                                // Name
+                                const SizedBox(height: 8),
                                 Text(
                                   name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700, fontSize: 14,
-                                    color: Colors.white,
-                                  ),
-                                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: text),
+                                  maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
                                 ),
                                 const SizedBox(height: 4),
-                                // Duration chip
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(8),
+                                    color: AppTheme.info.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
-                                  child: Text(dur, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                                  child: Text(dur, style: const TextStyle(color: AppTheme.info, fontSize: 10, fontWeight: FontWeight.w600)),
                                 ),
                                 if (price != null) ...[
-                                  const SizedBox(height: 6),
+                                  const SizedBox(height: 4),
                                   Text(
                                     Fmt.currency(num.tryParse('$price') ?? 0, currency),
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
+                                    style: const TextStyle(color: AppTheme.success, fontWeight: FontWeight.w800, fontSize: 13),
                                   ),
                                 ],
                               ],
                             ),
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      );
+                    },
                   ),
                 ],
-
-                const SizedBox(height: 20),
-
-                // ── Today's summary mini-card ──
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: card,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: sh,
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40, height: 40,
-                        decoration: BoxDecoration(
-                          color: AppTheme.success.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.trending_up_rounded, size: 20, color: AppTheme.success),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("Aujourd'hui", style: TextStyle(fontSize: 12, color: sub)),
-                            const SizedBox(height: 2),
-                            Text(
-                              Fmt.currency(_todayTotal),
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: text),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '${_salesHistory.length} vente${_salesHistory.length > 1 ? 's' : ''}',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.primary),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
 
                 const SizedBox(height: 20),
 
@@ -750,7 +681,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                               ),
                             ),
                             if (i < _salesHistory.length - 1)
-                              Padding(padding: const EdgeInsets.only(left: 62), child: Divider(height: 1, color: div)),
+                              Padding(padding: const EdgeInsets.only(left: 62), child: Divider(height: 1, color: divCol)),
                           ],
                         );
                       }),
@@ -850,7 +781,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                         children: List.generate(30, (i) => Expanded(
                           child: Container(
                             height: 1,
-                            color: i.isEven ? div(isDark) : Colors.transparent,
+                            color: i.isEven ? (isDark ? Colors.grey.shade800 : Colors.grey.shade200) : Colors.transparent,
                           ),
                         )),
                       ),
@@ -958,8 +889,6 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
   List<BoxShadow> _sh(bool isDark) => isDark
       ? []
       : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))];
-
-  Color div(bool isDark) => isDark ? Colors.grey.shade800 : Colors.grey.shade200;
 
   Widget _tag(String label, Color color) {
     return Container(

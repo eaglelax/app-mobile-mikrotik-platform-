@@ -94,6 +94,11 @@ class MikhmonService {
         .post('/api/hotspot.php', {'site_id': siteId, 'action': 'remove_cookie', 'id': cookieId});
   }
 
+  Future<Map<String, dynamic>> clearMac(int siteId, String username) async {
+    return await _api
+        .post('/api/hotspot.php', {'site_id': siteId, 'action': 'clear_mac', 'username': username});
+  }
+
   Future<Map<String, dynamic>> fetchIpBindings(int siteId) async {
     return await _api
         .get('/api/hotspot.php', {'site_id': siteId.toString(), 'action': 'ip_bindings'});
@@ -104,8 +109,4 @@ class MikhmonService {
         .get('/api/hotspot.php', {'site_id': siteId.toString(), 'action': 'logs', 'topic': topic});
   }
 
-  Future<Map<String, dynamic>> clearMac(int siteId, String username) async {
-    return await _api.post(
-        '/api/hotspot.php', {'site_id': siteId, 'action': 'clear_mac', 'username': username});
-  }
 }

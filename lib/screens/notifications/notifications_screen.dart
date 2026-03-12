@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
+import '../../models/site.dart';
 import '../../providers/notification_provider.dart';
+import '../../providers/site_provider.dart';
 import '../../utils/formatters.dart';
+import '../sites/site_detail_screen.dart';
+import '../reports/site_report_screen.dart';
+import '../tickets/tickets_list_screen.dart';
+import '../points/points_list_screen.dart';
+import '../sales/sales_screen.dart';
+import '../profiles/profiles_list_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -16,6 +24,83 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void initState() {
     super.initState();
     context.read<NotificationProvider>().fetchAll();
+  }
+
+  /// Resolve a Site object from its ID using SiteProvider
+  Site? _findSite(int? siteId) {
+    if (siteId == null) return null;
+    final sites = context.read<SiteProvider>().sites;
+    try {
+      return sites.firstWhere((s) => s.id == siteId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Navigate based on actionUrl pattern
+  void _handleNotificationTap(dynamic n, NotificationProvider provider) {
+    // Mark as read
+    if (!n.isRead) provider.markRead(n.id);
+
+    final url = (n.actionUrl ?? '').toString().trim();
+    if (url.isEmpty) return;
+
+    // Parse actionUrl patterns:
+    //   site/{id}          → SiteDetailScreen
+    //   report/{siteId}    → SiteReportScreen
+    //   tickets/{siteId}   → TicketsListScreen
+    //   points/{siteId}    → PointsListScreen
+    //   sales/{siteId}     → SalesScreen
+    //   profiles/{siteId}  → ProfilesListScreen
+    final parts = url.split('/');
+    if (parts.length < 2) return;
+
+    final route = parts[0];
+    final id = int.tryParse(parts[1]);
+    // Try route-level siteId, fallback to notification's siteId
+    final site = _findSite(id) ?? _findSite(n.siteId);
+
+    if (site == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Site introuvable'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
+
+    Widget? page;
+    switch (route) {
+      case 'site':
+        page = SiteDetailScreen(site: site);
+        break;
+      case 'report':
+      case 'reports':
+        page = SiteReportScreen(site: site);
+        break;
+      case 'tickets':
+      case 'ticket':
+        page = TicketsListScreen(site: site);
+        break;
+      case 'points':
+      case 'point':
+        page = PointsListScreen(site: site);
+        break;
+      case 'sales':
+      case 'sale':
+        page = SalesScreen(site: site);
+        break;
+      case 'profiles':
+      case 'profile':
+        page = ProfilesListScreen(site: site);
+        break;
+    }
+
+    if (page != null) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => page!));
+    }
   }
 
   @override
@@ -188,6 +273,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       _ => Icons.info_outline_rounded,
     };
 
+    final hasAction = (n.actionUrl ?? '').toString().trim().isNotEmpty;
+
     final unreadTint = !n.isRead
         ? (isDark
             ? AppTheme.primary.withValues(alpha: 0.06)
@@ -200,9 +287,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            if (!n.isRead) provider.markRead(n.id);
-          },
+          onTap: () => _handleNotificationTap(n, provider),
           child: Container(
             decoration: BoxDecoration(
               color: cardColor,
@@ -294,16 +379,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             height: 1.3,
                           ),
                         ),
-                        if (n.createdAt != null) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            Fmt.relative(n.createdAt!),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
-                        ],
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            if (n.createdAt != null)
+                              Text(
+                                Fmt.relative(n.createdAt!),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            if (hasAction) ...[
+                              const Spacer(),
+                              Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 12,
+                                color: Colors.grey.shade400,
+                              ),
+                            ],
+                          ],
+                        ),
                       ],
                     ),
                   ),
