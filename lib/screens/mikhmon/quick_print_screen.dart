@@ -21,7 +21,7 @@ class _QuickPrintScreenState extends State<QuickPrintScreen> {
   final _qtyController = TextEditingController(text: '10');
 
   List<Map<String, dynamic>> _profiles = [];
-  String? _selectedProfile;
+  Set<String> _selectedProfiles = {};
   int _quantity = 10;
   bool _loading = true;
   bool _generating = false;
@@ -79,20 +79,32 @@ class _QuickPrintScreenState extends State<QuickPrintScreen> {
   }
 
   Future<void> _generate() async {
-    if (_selectedProfile == null) return;
+    if (_selectedProfiles.isEmpty) return;
     setState(() => _generating = true);
 
     try {
-      final result = await _service.generateVouchers(widget.site.id, {
-        'profile_name': _selectedProfile,
-        'quantity': _quantity,
-      });
+      // Launch generation for all selected profiles in parallel
+      final futures = _selectedProfiles.map((profileName) {
+        return _service.generateVouchers(widget.site.id, {
+          'profile_name': profileName,
+          'quantity': _quantity,
+        });
+      }).toList();
+
+      final results = await Future.wait(futures);
+
       if (mounted) {
-        final tickets = (result['tickets'] as List? ?? [])
-            .cast<Map<String, dynamic>>();
+        final allTickets = <Map<String, dynamic>>[];
+        int totalSynced = 0;
+        for (final result in results) {
+          final tickets = (result['tickets'] as List? ?? [])
+              .cast<Map<String, dynamic>>();
+          allTickets.addAll(tickets);
+          totalSynced += (result['synced'] as num?)?.toInt() ?? 0;
+        }
         setState(() {
-          _generatedTickets = tickets;
-          _synced = (result['synced'] as num?)?.toInt() ?? 0;
+          _generatedTickets = allTickets;
+          _synced = totalSynced;
           _generating = false;
         });
       }
@@ -259,37 +271,98 @@ class _QuickPrintScreenState extends State<QuickPrintScreen> {
                   : ListView(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       children: [
-                        // ── Profile Selector ──
+                        // ── Profile Grid Selector (multi-select) ──
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: shadow),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Profil', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: subtitleColor)),
-                              const SizedBox(height: 10),
-                              DropdownButtonFormField<String>(
-                                initialValue: _selectedProfile,
-                                decoration: InputDecoration(
-                                  hintText: 'Choisir un profil',
-                                  hintStyle: TextStyle(color: subtitleColor, fontSize: 14),
-                                  filled: true,
-                                  fillColor: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.primary, width: 1.5)),
-                                ),
-                                dropdownColor: cardColor,
-                                style: TextStyle(color: textColor, fontSize: 14),
-                                items: _profiles
-                                    .map((p) => DropdownMenuItem<String>(
-                                          value: p['name'],
-                                          child: Text(p['name'] ?? ''),
-                                        ))
-                                    .toList(),
-                                onChanged: (v) => setState(() => _selectedProfile = v),
+                              Row(
+                                children: [
+                                  Text('Profils', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: subtitleColor)),
+                                  const Spacer(),
+                                  if (_selectedProfiles.isNotEmpty)
+                                    GestureDetector(
+                                      onTap: () => setState(() => _selectedProfiles.clear()),
+                                      child: const Text('Tout décocher', style: TextStyle(fontSize: 12, color: AppTheme.primary)),
+                                    ),
+                                ],
                               ),
+                              const SizedBox(height: 10),
+                              GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 4,
+                                  crossAxisSpacing: 8,
+                                  mainAxisSpacing: 8,
+                                  childAspectRatio: 1.1,
+                                ),
+                                itemCount: _profiles.length,
+                                itemBuilder: (ctx, i) {
+                                  final p = _profiles[i];
+                                  final name = p['name'] ?? '';
+                                  final price = p['ticket_price'];
+                                  final selected = _selectedProfiles.contains(name);
+                                  return GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        if (selected) {
+                                          _selectedProfiles.remove(name);
+                                        } else {
+                                          _selectedProfiles.add(name);
+                                        }
+                                      });
+                                    },
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: selected
+                                            ? AppTheme.primary.withValues(alpha: isDark ? 0.3 : 0.12)
+                                            : (isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA)),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: selected ? AppTheme.primary : Colors.transparent,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          if (selected)
+                                            const Icon(Icons.check_circle, color: AppTheme.primary, size: 18)
+                                          else
+                                            Icon(Icons.radio_button_unchecked, color: Colors.grey.shade400, size: 18),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            name,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                              color: selected ? AppTheme.primary : (isDark ? Colors.white70 : Colors.black87),
+                                            ),
+                                            textAlign: TextAlign.center,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          if (price != null && price > 0)
+                                            Text(
+                                              '${price.toStringAsFixed(0)}F',
+                                              style: TextStyle(fontSize: 10, color: subtitleColor),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              if (_selectedProfiles.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  '${_selectedProfiles.length} profil(s) sélectionné(s)',
+                                  style: const TextStyle(fontSize: 12, color: AppTheme.primary, fontWeight: FontWeight.w600),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -363,7 +436,7 @@ class _QuickPrintScreenState extends State<QuickPrintScreen> {
                         SizedBox(
                           height: 54,
                           child: ElevatedButton(
-                            onPressed: _generating || _selectedProfile == null ? null : _generate,
+                            onPressed: _generating || _selectedProfiles.isEmpty ? null : _generate,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.primary,
                               foregroundColor: Colors.white,

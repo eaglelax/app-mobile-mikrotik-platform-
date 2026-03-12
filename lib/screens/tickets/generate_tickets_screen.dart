@@ -27,7 +27,7 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
 
   List<Map<String, dynamic>> _profiles = [];
   List<Point> _points = [];
-  Map<String, dynamic>? _selectedProfile;
+  Set<String> _selectedProfiles = {};
   Point? _selectedPoint;
   bool _loadingProfiles = true;
   bool _generating = false;
@@ -65,9 +65,9 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
   }
 
   Future<void> _generate() async {
-    if (_selectedProfile == null) {
+    if (_selectedProfiles.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sélectionnez un profil')),
+        const SnackBar(content: Text('Sélectionnez au moins un profil')),
       );
       return;
     }
@@ -81,19 +81,30 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
 
     setState(() => _generating = true);
     try {
-      final profileName = _selectedProfile!['name'] as String;
-      final result = await _ticketService.generateBatch(
-        widget.site.id,
-        profile: profileName,
-        quantity: qty,
-        pointId: _selectedPoint?.id,
-      );
+      // Launch generation for all selected profiles in parallel
+      final futures = _selectedProfiles.map((profileName) {
+        return _ticketService.generateBatch(
+          widget.site.id,
+          profile: profileName,
+          quantity: qty,
+          pointId: _selectedPoint?.id,
+        );
+      }).toList();
+
+      final results = await Future.wait(futures);
+
       if (mounted) {
-        final tickets = (result['tickets'] as List? ?? [])
-            .cast<Map<String, dynamic>>();
+        final allTickets = <Map<String, dynamic>>[];
+        int totalSynced = 0;
+        for (final result in results) {
+          final tickets = (result['tickets'] as List? ?? [])
+              .cast<Map<String, dynamic>>();
+          allTickets.addAll(tickets);
+          totalSynced += (result['synced'] as num?)?.toInt() ?? 0;
+        }
         setState(() {
-          _generatedTickets = tickets;
-          _synced = (result['synced'] as num?)?.toInt() ?? 0;
+          _generatedTickets = allTickets;
+          _synced = totalSynced;
           _generating = false;
         });
       }
@@ -111,8 +122,7 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
     final tickets = _generatedTickets!;
     final pdf = pw.Document();
     final siteName = widget.site.nom;
-    final profile = tickets.isNotEmpty ? tickets[0]['profile'] ?? '' : '';
-    final price = tickets.isNotEmpty ? tickets[0]['price'] : null;
+    final profileNames = tickets.map((t) => t['profile'] ?? '').toSet().join(', ');
 
     const ticketsPerRow = 3;
     const ticketsPerPage = 15; // 3 cols x 5 rows
@@ -138,13 +148,10 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                   pw.Text(siteName,
                       style: pw.TextStyle(
                           fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                  pw.Text('Profil: $profile',
+                  pw.Text('Profils: $profileNames',
                       style: const pw.TextStyle(fontSize: 11)),
                 ],
               ),
-              if (price != null)
-                pw.Text('Prix: $price FCFA',
-                    style: const pw.TextStyle(fontSize: 10)),
               pw.SizedBox(height: 10),
               pw.Divider(),
               pw.SizedBox(height: 10),
@@ -152,6 +159,8 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                 spacing: 8,
                 runSpacing: 8,
                 children: pageTickets.map((t) {
+                  final tProfile = t['profile'] ?? '';
+                  final tPrice = t['price'];
                   return pw.Container(
                     width: (PdfPageFormat.a4.width - 40 - 16) / ticketsPerRow,
                     padding: const pw.EdgeInsets.all(8),
@@ -166,7 +175,7 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                             style: pw.TextStyle(
                                 fontSize: 7, fontWeight: pw.FontWeight.bold)),
                         pw.SizedBox(height: 2),
-                        pw.Text(profile,
+                        pw.Text(tProfile,
                             style: const pw.TextStyle(fontSize: 6)),
                         pw.SizedBox(height: 4),
                         pw.Container(
@@ -185,9 +194,9 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                         pw.SizedBox(height: 2),
                         pw.Text('Mot de passe: ${t['password'] ?? t['code']}',
                             style: const pw.TextStyle(fontSize: 6)),
-                        if (price != null) ...[
+                        if (tPrice != null) ...[
                           pw.SizedBox(height: 2),
-                          pw.Text('$price FCFA',
+                          pw.Text('$tPrice FCFA',
                               style: pw.TextStyle(
                                   fontSize: 8,
                                   fontWeight: pw.FontWeight.bold)),
@@ -380,44 +389,96 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                                 ),
                                 const SizedBox(height: 20),
 
-                                // Profile selector
-                                Text('Profil', style: TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.w600,
-                                  color: _isDark ? Colors.white70 : Colors.grey.shade700,
-                                )),
-                                const SizedBox(height: 8),
-                                _dropdownContainer(
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                      isExpanded: true,
-                                      value: _selectedProfile?['name'] as String?,
-                                      hint: Text('Choisir un profil', style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
-                                      dropdownColor: _isDark ? AppTheme.darkCard : Colors.white,
-                                      items: _profiles.map((p) {
-                                        final name = p['name'] ?? '';
-                                        final price = p['ticket_price'];
-                                        final stock = p['stock'];
-                                        final stockLabel = stock != null ? ' ($stock)' : '';
-                                        final priceLabel = price != null && price > 0 ? ' - ${price.toStringAsFixed(0)} FCFA' : '';
-                                        return DropdownMenuItem(
-                                          value: name as String,
-                                          child: Text('$name$priceLabel$stockLabel',
-                                              style: TextStyle(fontSize: 14, color: _isDark ? Colors.white : Colors.black87),
-                                              overflow: TextOverflow.ellipsis),
-                                        );
-                                      }).toList(),
-                                      onChanged: (val) {
+                                // Profile grid selector (multi-select)
+                                Row(
+                                  children: [
+                                    Text('Profils', style: TextStyle(
+                                      fontSize: 13, fontWeight: FontWeight.w600,
+                                      color: _isDark ? Colors.white70 : Colors.grey.shade700,
+                                    )),
+                                    const Spacer(),
+                                    if (_selectedProfiles.isNotEmpty)
+                                      GestureDetector(
+                                        onTap: () => setState(() => _selectedProfiles.clear()),
+                                        child: Text('Tout décocher', style: TextStyle(fontSize: 12, color: AppTheme.primary)),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                GridView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 4,
+                                    crossAxisSpacing: 8,
+                                    mainAxisSpacing: 8,
+                                    childAspectRatio: 1.1,
+                                  ),
+                                  itemCount: _profiles.length,
+                                  itemBuilder: (ctx, i) {
+                                    final p = _profiles[i];
+                                    final name = p['name'] ?? '';
+                                    final price = p['ticket_price'];
+                                    final selected = _selectedProfiles.contains(name);
+                                    return GestureDetector(
+                                      onTap: () {
                                         setState(() {
-                                          _selectedProfile = _profiles.firstWhere((p) => p['name'] == val);
-                                          final suggestion = _selectedProfile?['suggestion'];
-                                          if (suggestion != null && suggestion > 0) {
-                                            _qtyController.text = suggestion.toString();
+                                          if (selected) {
+                                            _selectedProfiles.remove(name);
+                                          } else {
+                                            _selectedProfiles.add(name);
                                           }
                                         });
                                       },
-                                    ),
-                                  ),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: selected
+                                              ? AppTheme.primary.withValues(alpha: _isDark ? 0.3 : 0.12)
+                                              : (_isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA)),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: selected ? AppTheme.primary : Colors.transparent,
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            if (selected)
+                                              const Icon(Icons.check_circle, color: AppTheme.primary, size: 18)
+                                            else
+                                              Icon(Icons.radio_button_unchecked, color: Colors.grey.shade400, size: 18),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              name,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                                color: selected ? AppTheme.primary : (_isDark ? Colors.white70 : Colors.black87),
+                                              ),
+                                              textAlign: TextAlign.center,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            if (price != null && price > 0)
+                                              Text(
+                                                '${price.toStringAsFixed(0)}F',
+                                                style: TextStyle(fontSize: 10, color: _textSecondary),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
+
+                                if (_selectedProfiles.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '${_selectedProfiles.length} profil(s) sélectionné(s)',
+                                    style: TextStyle(fontSize: 12, color: AppTheme.primary, fontWeight: FontWeight.w600),
+                                  ),
+                                ],
 
                                 const SizedBox(height: 16),
 
@@ -454,10 +515,9 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                                             child: Text('Tous les points', style: TextStyle(fontSize: 14, color: Colors.grey.shade400)),
                                           ),
                                           ...activePoints.map((p) {
-                                            final serverLabel = p.serverName != null ? ' (${p.serverName})' : '';
                                             return DropdownMenuItem<int>(
                                               value: p.id,
-                                              child: Text('${p.name}$serverLabel',
+                                              child: Text(p.name,
                                                   style: TextStyle(fontSize: 14, color: _isDark ? Colors.white : Colors.black87),
                                                   overflow: TextOverflow.ellipsis),
                                             );
@@ -473,17 +533,6 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                                       ),
                                     ),
                                   ),
-
-                                // Show associated hotspot server info
-                                if (_selectedPoint?.serverName != null) ...[
-                                  const SizedBox(height: 6),
-                                  Row(children: [
-                                    Icon(Icons.wifi, size: 14, color: AppTheme.primary.withValues(alpha: 0.7)),
-                                    const SizedBox(width: 6),
-                                    Text('Serveur hotspot: ${_selectedPoint!.serverName}',
-                                        style: TextStyle(fontSize: 12, color: AppTheme.primary.withValues(alpha: 0.7))),
-                                  ]),
-                                ],
 
                                 const SizedBox(height: 16),
 
@@ -536,7 +585,7 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                                   height: 52,
                                   child: ElevatedButton.icon(
                                     onPressed:
-                                        (_generating || _selectedProfile == null) ? null : _generate,
+                                        (_generating || _selectedProfiles.isEmpty) ? null : _generate,
                                     icon: _generating
                                         ? const SizedBox(
                                             width: 18,
@@ -584,9 +633,9 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
 
   Widget _buildResultScreen() {
     final tickets = _generatedTickets!;
-    final profile =
-        tickets.isNotEmpty ? tickets[0]['profile'] ?? '' : '';
-    final price = tickets.isNotEmpty ? tickets[0]['price'] : null;
+    // Group profiles for display
+    final profileNames = tickets.map((t) => t['profile'] ?? '').toSet();
+    final profileLabel = profileNames.join(', ');
 
     return Scaffold(
       backgroundColor: _bg,
@@ -628,25 +677,13 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
               ),
             ),
 
-            if (profile.isNotEmpty)
+            if (profileLabel.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 24, vertical: 10),
-                child: Row(
-                  children: [
-                    Text('Profil: $profile',
-                        style: TextStyle(
-                            color: _textSecondary, fontSize: 13)),
-                    if (price != null) ...[
-                      const Spacer(),
-                      Text('$price FCFA',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                              color: _textPrimary)),
-                    ],
-                  ],
-                ),
+                child: Text('Profils: $profileLabel',
+                    style: TextStyle(
+                        color: _textSecondary, fontSize: 13)),
               ),
 
             // Action buttons
@@ -758,7 +795,7 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                               letterSpacing: 1.5,
                               color: _textPrimary)),
                       subtitle: Text(
-                          'Mot de passe: ${t['password'] ?? t['code']}',
+                          '${t['profile'] ?? ''} · MDP: ${t['password'] ?? t['code']}',
                           style: TextStyle(
                               fontSize: 12, color: _textSecondary)),
                     ),
