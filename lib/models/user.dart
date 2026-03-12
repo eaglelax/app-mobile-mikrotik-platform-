@@ -34,8 +34,10 @@ class User {
 
   int getQuota(String resource) {
     if (isAdmin) return 999;
-    final val = features?[resource] ?? features?['max_$resource'];
+    // Prefer numeric max_ key over boolean feature flag
+    final val = features?['max_$resource'] ?? features?[resource];
     if (val == null) return 0;
+    if (val is bool) return val ? 999 : 0;
     if (val is int) return val;
     if (val is num) return val.toInt();
     return int.tryParse(val.toString()) ?? 0;
