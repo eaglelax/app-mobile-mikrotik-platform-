@@ -42,8 +42,8 @@ class _SitesListScreenState extends State<SitesListScreen> {
     super.dispose();
   }
 
-  void _showSiteActions(Site site, SiteProvider provider) {
-    showModalBottomSheet(
+  Future<void> _showSiteActions(Site site, SiteProvider provider) async {
+    final action = await showModalBottomSheet<String>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -65,19 +65,13 @@ class _SitesListScreenState extends State<SitesListScreen> {
                 leading: const Icon(Icons.delete_sweep, color: Colors.orange),
                 title: const Text('Supprimer tous les tickets'),
                 subtitle: const Text('Supprime tous les tickets de tous les points de vente'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _deleteAllTickets(site);
-                },
+                onTap: () => Navigator.pop(ctx, 'delete_tickets'),
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: AppTheme.danger),
                 title: const Text('Supprimer le site', style: TextStyle(color: AppTheme.danger)),
                 subtitle: const Text('Supprime le site et toutes ses donnees'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _deleteSite(site, provider);
-                },
+                onTap: () => Navigator.pop(ctx, 'delete_site'),
               ),
               const SizedBox(height: 8),
               ListTile(
@@ -90,6 +84,12 @@ class _SitesListScreenState extends State<SitesListScreen> {
         ),
       ),
     );
+    if (!mounted || action == null) return;
+    if (action == 'delete_tickets') {
+      await _deleteAllTickets(site);
+    } else if (action == 'delete_site') {
+      await _deleteSite(site, provider);
+    }
   }
 
   Future<void> _deleteAllTickets(Site site) async {
@@ -97,28 +97,60 @@ class _SitesListScreenState extends State<SitesListScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Supprimer tous les tickets ?'),
-        content: Text('Tous les tickets de tous les points de vente du site "${site.nom}" seront supprimes du routeur. Cette action est irreversible.'),
+        content: Text('Tous les tickets de tous les points de vente du site "${site.nom}" seront supprimes du routeur.\n\nCette action est irreversible.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('Confirmer la suppression'),
+            child: const Text('Confirmer'),
           ),
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 20),
+            Expanded(child: Text('Suppression des tickets en cours...')),
+          ],
+        ),
+      ),
+    );
+
     try {
       final result = await MikhmonService().removeAllUsers(site.id);
       if (mounted) {
+        Navigator.pop(context); // close loading
         final removed = result['removed'] ?? 0;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$removed tickets supprimes'), backgroundColor: AppTheme.success),
-        );
+        final success = result['success'] == true;
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$removed tickets supprimes avec succes'),
+              backgroundColor: AppTheme.success,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['error']?.toString() ?? 'Erreur inconnue'),
+              backgroundColor: AppTheme.danger,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
+        Navigator.pop(context); // close loading
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
         );
