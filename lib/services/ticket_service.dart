@@ -26,7 +26,7 @@ class TicketService {
       'profile_name': profile,
       'quantity': quantity,
       if (pointId != null) 'point_id': pointId,
-    });
+    }, const Duration(minutes: 5));
     _api.invalidateCache('/api/ticket-batch');
     _api.invalidateCache('/api/hotspot.php');
     return result;
