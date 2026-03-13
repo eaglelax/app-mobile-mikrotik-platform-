@@ -131,12 +131,11 @@ class _SitesListScreenState extends State<SitesListScreen> {
     MikhmonService().removeAllUsers(site.id).then((result) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).clearSnackBars();
-      final removed = result['removed'] ?? 0;
       final success = result['success'] == true;
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$removed tickets supprimes avec succes sur "${site.nom}"'),
+            content: Text(result['message']?.toString() ?? 'Tickets supprimes avec succes sur "${site.nom}"'),
             backgroundColor: AppTheme.success,
             duration: const Duration(seconds: 4),
           ),
