@@ -110,8 +110,30 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
       }
     } catch (e) {
       if (mounted) {
+        // Timeout = la génération continue en arrière-plan sur le serveur
+        final isTimeout = e.toString().contains('TimeoutException');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  isTimeout ? Icons.cloud_sync : Icons.error_outline,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isTimeout
+                        ? 'Génération en cours en arrière-plan. Les tickets seront disponibles dans quelques instants.'
+                        : 'Erreur: $e',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: isTimeout ? Colors.orange : Colors.red,
+            duration: Duration(seconds: isTimeout ? 6 : 4),
+          ),
         );
         setState(() => _generating = false);
       }
