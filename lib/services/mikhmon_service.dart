@@ -58,7 +58,7 @@ class MikhmonService {
   Future<Map<String, dynamic>> generateVouchers(
       int siteId, Map<String, dynamic> params) async {
     return await _api.post(
-        '/api/generate-tickets.php', {'site_id': siteId, ...params});
+        '/api/generate-tickets.php', {'site_id': siteId, ...params}, const Duration(minutes: 5));
   }
 
   Future<Map<String, dynamic>> flashSale(
