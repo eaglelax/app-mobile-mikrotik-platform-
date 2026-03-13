@@ -6,6 +6,7 @@ import '../../models/site.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/site_provider.dart';
 import '../../services/site_service.dart';
+import '../../services/mikhmon_service.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
 import 'site_detail_screen.dart';
@@ -39,6 +40,90 @@ class _SitesListScreenState extends State<SitesListScreen> {
     _autoRefresh?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _showSiteActions(Site site, SiteProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+              ),
+              Text(site.nom, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.delete_sweep, color: Colors.orange),
+                title: const Text('Supprimer tous les tickets'),
+                subtitle: const Text('Supprime tous les tickets de tous les points de vente'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _deleteAllTickets(site);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: AppTheme.danger),
+                title: const Text('Supprimer le site', style: TextStyle(color: AppTheme.danger)),
+                subtitle: const Text('Supprime le site et toutes ses donnees'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _deleteSite(site, provider);
+                },
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: const Icon(Icons.close),
+                title: const Text('Annuler'),
+                onTap: () => Navigator.pop(ctx),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteAllTickets(Site site) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer tous les tickets ?'),
+        content: Text('Tous les tickets de tous les points de vente du site "${site.nom}" seront supprimes du routeur. Cette action est irreversible.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text('Confirmer la suppression'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final result = await MikhmonService().removeAllUsers(site.id);
+      if (mounted) {
+        final removed = result['removed'] ?? 0;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$removed tickets supprimes'), backgroundColor: AppTheme.success),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
+        );
+      }
+    }
   }
 
   Future<void> _deleteSite(Site site, SiteProvider provider) async {
@@ -290,7 +375,7 @@ class _SitesListScreenState extends State<SitesListScreen> {
                 child: _SiteCard(
                   site: site,
                   isDark: isDark,
-                  onDelete: () => _deleteSite(site, siteProvider),
+                  onDelete: () => _showSiteActions(site, siteProvider),
                 ),
               )),
 
