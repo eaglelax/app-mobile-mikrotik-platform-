@@ -1,4 +1,3 @@
-import '../config/api_config.dart';
 import '../models/site.dart';
 import 'api_client.dart';
 
@@ -6,14 +5,16 @@ class SiteService {
   final _api = ApiClient();
 
   Future<List<Site>> fetchAll() async {
-    final data = await _api.get('/api/sites-list.php', null, ApiConfig.longTimeout);
+    final data = await _api.getCached('/api/sites-list.php',
+        ttl: const Duration(seconds: 30));
     final sites = data['sites'] as List? ?? [];
     return sites.map((s) => Site.fromJson(s)).toList();
   }
 
   Future<Map<String, dynamic>> fetchStats(int siteId) async {
-    return await _api
-        .get('/api/site-stats.php', {'site_id': siteId.toString()});
+    return await _api.getCached('/api/site-stats.php',
+        params: {'site_id': siteId.toString()},
+        ttl: const Duration(seconds: 30));
   }
 
   Future<Map<String, dynamic>> testConnection(int siteId) async {
@@ -22,22 +23,29 @@ class SiteService {
   }
 
   Future<Map<String, dynamic>> createSite(Map<String, dynamic> data) async {
-    return await _api.post('/api/sites-list.php', data);
+    final result = await _api.post('/api/sites-list.php', data);
+    _api.invalidateCache('/api/sites-list');
+    return result;
   }
 
   Future<Map<String, dynamic>> updateSite(int siteId, Map<String, dynamic> fields) async {
-    return await _api.post('/api/sites-list.php', {
+    final result = await _api.post('/api/sites-list.php', {
       'action': 'update',
       'site_id': siteId,
       ...fields,
     });
+    _api.invalidateCache('/api/sites-list');
+    _api.invalidateCache('/api/site-stats');
+    return result;
   }
 
   Future<Map<String, dynamic>> deleteSite(int siteId) async {
-    return await _api.post('/api/sites-list.php', {
+    final result = await _api.post('/api/sites-list.php', {
       'action': 'delete',
       'site_id': siteId,
     });
+    _api.invalidateCache('/api/sites-list');
+    return result;
   }
 
   Future<Map<String, dynamic>> syncSales(int siteId) async {

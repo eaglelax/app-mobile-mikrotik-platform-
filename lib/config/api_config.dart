@@ -4,8 +4,8 @@ class ApiConfig {
   // For local development:
   // static const String baseUrl = 'http://192.168.1.100:8888';
 
-  static const Duration timeout = Duration(seconds: 60);
-  static const Duration longTimeout = Duration(seconds: 90);
+  static const Duration timeout = Duration(seconds: 20);
+  static const Duration longTimeout = Duration(seconds: 45);
 
   // API endpoints
   static const String login = '/api/auth/login.php';

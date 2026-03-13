@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../models/site.dart';
@@ -17,11 +18,18 @@ class _HotspotUsersScreenState extends State<HotspotUsersScreen> {
   List<Map<String, dynamic>> _users = [];
   bool _loading = true;
   String _search = '';
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -155,7 +163,12 @@ class _HotspotUsersScreenState extends State<HotspotUsersScreen> {
                   ),
                 ),
                 style: TextStyle(fontSize: 14, color: textColor),
-                onChanged: (v) => setState(() => _search = v),
+                onChanged: (v) {
+                  _debounce?.cancel();
+                  _debounce = Timer(const Duration(milliseconds: 300), () {
+                    setState(() => _search = v);
+                  });
+                },
               ),
             ),
 

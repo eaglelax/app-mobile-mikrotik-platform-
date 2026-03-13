@@ -28,6 +28,8 @@ class _VouchersScreenState extends State<VouchersScreen> {
   String? _error;
   String? _profileFilter;
   String _search = '';
+  String _siteSearch = '';
+  final _siteSearchController = TextEditingController();
   Timer? _autoRefreshTimer;
 
   // Generation state
@@ -48,13 +50,14 @@ class _VouchersScreenState extends State<VouchersScreen> {
   @override
   void dispose() {
     _autoRefreshTimer?.cancel();
+    _siteSearchController.dispose();
     super.dispose();
   }
 
   void _startAutoRefresh() {
     _autoRefreshTimer?.cancel();
     _autoRefreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
-      if (mounted && _site != null) _load();
+      if (mounted && _site != null && WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) _load();
     });
   }
 
@@ -706,6 +709,46 @@ class _VouchersScreenState extends State<VouchersScreen> {
               ),
             ),
             const SizedBox(height: 20),
+            // Search bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark ? AppTheme.darkCard : Colors.white,
+                  borderRadius: BorderRadius.circular(50),
+                  boxShadow: isDark ? null : [
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2)),
+                  ],
+                ),
+                child: TextField(
+                  controller: _siteSearchController,
+                  onChanged: (v) => setState(() => _siteSearch = v),
+                  decoration: InputDecoration(
+                    hintText: 'Rechercher un site...',
+                    hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                    prefixIcon: Padding(
+                      padding: const EdgeInsets.only(left: 18, right: 8),
+                      child: Icon(Icons.search_rounded, color: Colors.grey.shade400, size: 22),
+                    ),
+                    prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                    suffixIcon: _siteSearch.isNotEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: IconButton(
+                              icon: Icon(Icons.close_rounded, color: Colors.grey.shade400, size: 20),
+                              onPressed: () { _siteSearchController.clear(); setState(() => _siteSearch = ''); },
+                            ),
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             Expanded(
               child: sites.isEmpty
                   ? Center(
@@ -714,11 +757,18 @@ class _VouchersScreenState extends State<VouchersScreen> {
                         style: TextStyle(color: Colors.grey.shade400),
                       ),
                     )
-                  : ListView.builder(
+                  : Builder(
+                      builder: (context) {
+                        final filtered = sites.where((s) {
+                          if (_siteSearch.isEmpty) return true;
+                          final q = _siteSearch.toLowerCase();
+                          return s.nom.toLowerCase().contains(q) || s.routerIp.toLowerCase().contains(q);
+                        }).toList();
+                        return ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: sites.length,
+                      itemCount: filtered.length,
                       itemBuilder: (ctx, i) {
-                        final s = sites[i];
+                        final s = filtered[i];
                         return GestureDetector(
                           onTap: () {
                             setState(() => _site = s);
@@ -788,6 +838,8 @@ class _VouchersScreenState extends State<VouchersScreen> {
                             ),
                           ),
                         );
+                      },
+                    );
                       },
                     ),
             ),

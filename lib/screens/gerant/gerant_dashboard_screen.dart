@@ -42,7 +42,7 @@ class GerantDashboardScreenState extends State<GerantDashboardScreen> with Widge
     WidgetsBinding.instance.addObserver(this);
     _load();
     _autoRefresh = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) _load();
+      if (mounted && WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) _load();
     });
   }
 

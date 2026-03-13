@@ -53,7 +53,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     _selectedMonth = now.month;
     _selectedYear = now.year;
     _load();
-    _autoRefresh = Timer.periodic(const Duration(seconds: 60), (_) => _load());
+    _autoRefresh = Timer.periodic(const Duration(seconds: 60), (_) { if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) _load(); });
   }
 
   @override

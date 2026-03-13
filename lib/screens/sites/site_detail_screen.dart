@@ -62,8 +62,11 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _loadStats();
-    _loadTunnel();
+    _loadAll();
+  }
+
+  Future<void> _loadAll() async {
+    await Future.wait([_loadStats(), _loadTunnel()]);
   }
 
   @override
@@ -199,16 +202,18 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
   Future<void> _loadStats() async {
     setState(() => _loading = true);
     try {
-      final raw = await _siteService.fetchStats(widget.site.id);
+      // Parallel fetch: site stats + mikhmon dashboard
+      final results = await Future.wait([
+        _siteService.fetchStats(widget.site.id),
+        _mikhmonService.fetchDashboard(widget.site.id).catchError((_) => <String, dynamic>{}),
+      ]);
+
+      final raw = results[0];
       final data = raw['data'] is Map<String, dynamic>
           ? raw['data'] as Map<String, dynamic>
           : raw;
-
-      int activeUsers = 0;
-      try {
-        final mikhmonData = await _mikhmonService.fetchDashboard(widget.site.id);
-        activeUsers = mikhmonData['active']?['count'] ?? 0;
-      } catch (_) {}
+      final mikhmonData = results[1];
+      final activeUsers = mikhmonData['active']?['count'] ?? 0;
 
       _stats = {
         'today_revenue': data['revenue'] ?? 0,
