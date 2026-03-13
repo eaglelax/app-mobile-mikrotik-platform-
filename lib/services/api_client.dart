@@ -110,23 +110,24 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> post(String endpoint,
-      [Map<String, dynamic>? body]) async {
+      [Map<String, dynamic>? body, Duration? timeout]) async {
     final uri = Uri.parse('${ApiConfig.baseUrl}$endpoint');
     final payload = body ?? {};
     if (_csrfToken != null) {
       payload['csrf_token'] = _csrfToken;
     }
+    final effectiveTimeout = timeout ?? ApiConfig.timeout;
 
     var response = await http
         .post(uri, headers: _headers, body: jsonEncode(payload))
-        .timeout(ApiConfig.timeout);
+        .timeout(effectiveTimeout);
 
     // Auto re-login on 401
     if (response.statusCode == 401) {
       if (await _tryAutoRelogin()) {
         response = await http
             .post(uri, headers: _headers, body: jsonEncode(payload))
-            .timeout(ApiConfig.timeout);
+            .timeout(effectiveTimeout);
       }
     }
 

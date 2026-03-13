@@ -112,52 +112,50 @@ class _SitesListScreenState extends State<SitesListScreen> {
     );
     if (confirmed != true || !mounted) return;
 
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const AlertDialog(
+    // Show immediate feedback and run in background
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
         content: Row(
           children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 20),
-            Expanded(child: Text('Suppression des tickets en cours...')),
+            const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+            const SizedBox(width: 12),
+            Text('Suppression des tickets de "${site.nom}" en cours...'),
           ],
         ),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 30),
       ),
     );
 
-    try {
-      final result = await MikhmonService().removeAllUsers(site.id);
-      if (mounted) {
-        Navigator.pop(context); // close loading
-        final removed = result['removed'] ?? 0;
-        final success = result['success'] == true;
-        if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('$removed tickets supprimes avec succes'),
-              backgroundColor: AppTheme.success,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['error']?.toString() ?? 'Erreur inconnue'),
-              backgroundColor: AppTheme.danger,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context); // close loading
+    // Run in background
+    MikhmonService().removeAllUsers(site.id).then((result) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
+      final removed = result['removed'] ?? 0;
+      final success = result['success'] == true;
+      if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
+          SnackBar(
+            content: Text('$removed tickets supprimes avec succes sur "${site.nom}"'),
+            backgroundColor: AppTheme.success,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['error']?.toString() ?? 'Erreur inconnue'),
+            backgroundColor: AppTheme.danger,
+          ),
         );
       }
-    }
+    }).catchError((e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
+      );
+    });
   }
 
   Future<void> _deleteSite(Site site, SiteProvider provider) async {

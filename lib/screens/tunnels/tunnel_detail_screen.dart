@@ -186,8 +186,6 @@ class _TunnelDetailScreenState extends State<TunnelDetailScreen> {
         : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))];
 
     final tunnelName = _tunnel['tunnel_name'] ?? _tunnel['tunnel_label'] ?? '';
-    final vpnIp = _tunnel['vpn_ip'] ?? '-';
-    final endpoint = _tunnel['endpoint'] ?? _tunnel['server_endpoint'] ?? '-';
     final status = _tunnel['status'] ?? 'unknown';
     final isActive = status == 'active';
     final siteName = _tunnel['site_name'] ?? '-';
@@ -274,8 +272,6 @@ class _TunnelDetailScreenState extends State<TunnelDetailScreen> {
                             Text('Informations', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textColor)),
                             const SizedBox(height: 14),
                             _infoTile(Icons.label_outline, 'Nom', tunnelName, textColor, subtitleColor),
-                            _infoTile(Icons.language, 'IP VPN', vpnIp, textColor, subtitleColor),
-                            _infoTile(Icons.dns_outlined, 'Endpoint', endpoint, textColor, subtitleColor),
                             _infoTile(Icons.router, 'Site', siteName, textColor, subtitleColor),
                             _infoTile(Icons.circle, 'Statut', isActive ? 'Actif' : status, textColor, subtitleColor,
                                 valueColor: isActive ? AppTheme.success : Colors.orange),

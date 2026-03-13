@@ -52,7 +52,7 @@ class MikhmonService {
 
   Future<Map<String, dynamic>> removeAllUsers(int siteId) async {
     return await _api.post(
-        '/api/hotspot.php', {'site_id': siteId, 'action': 'remove_all_users'});
+        '/api/hotspot.php', {'site_id': siteId, 'action': 'remove_all_users'}, const Duration(minutes: 3));
   }
 
   Future<Map<String, dynamic>> generateVouchers(
