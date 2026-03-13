@@ -63,7 +63,7 @@ class _KpiDashboardScreenState extends State<KpiDashboardScreen> {
   void _startAutoRefresh() {
     _autoRefresh?.cancel();
     _autoRefresh = Timer.periodic(const Duration(seconds: 60), (_) {
-      if (_site != null && mounted) _load();
+      if (_site != null && mounted && WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) _load();
     });
   }
 

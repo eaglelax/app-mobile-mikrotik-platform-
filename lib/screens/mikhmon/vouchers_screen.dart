@@ -54,7 +54,7 @@ class _VouchersScreenState extends State<VouchersScreen> {
   void _startAutoRefresh() {
     _autoRefreshTimer?.cancel();
     _autoRefreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
-      if (mounted && _site != null) _load();
+      if (mounted && _site != null && WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) _load();
     });
   }
 

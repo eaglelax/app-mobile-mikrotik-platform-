@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
+import 'cache_service.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -20,11 +21,18 @@ class ApiClient {
   String? _bearerToken;
   String? _csrfToken;
   bool _isRefreshing = false;
+  SharedPreferences? _prefs;
+  final _cache = CacheService();
 
   String get baseUrl => ApiConfig.baseUrl;
 
+  Future<SharedPreferences> get _prefsInstance async {
+    _prefs ??= await SharedPreferences.getInstance();
+    return _prefs!;
+  }
+
   Future<void> init() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefsInstance;
     _bearerToken = prefs.getString('bearer_token');
     _csrfToken = prefs.getString('csrf_token');
   }
@@ -38,7 +46,7 @@ class ApiClient {
 
   /// Save login credentials for auto-re-login
   Future<void> saveCredentials(String email, String password) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefsInstance;
     await prefs.setString('auth_email', email);
     await prefs.setString('auth_password', password);
   }
@@ -48,7 +56,7 @@ class ApiClient {
     if (_isRefreshing) return false;
     _isRefreshing = true;
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _prefsInstance;
       final email = prefs.getString('auth_email');
       final password = prefs.getString('auth_password');
       if (email == null || password == null) return false;
@@ -180,7 +188,8 @@ class ApiClient {
   Future<void> clearSession() async {
     _bearerToken = null;
     _csrfToken = null;
-    final prefs = await SharedPreferences.getInstance();
+    _cache.clear();
+    final prefs = await _prefsInstance;
     await prefs.remove('bearer_token');
     await prefs.remove('csrf_token');
     await prefs.remove('auth_email');
@@ -189,13 +198,42 @@ class ApiClient {
 
   void setToken(String token) {
     _bearerToken = token;
-    SharedPreferences.getInstance()
-        .then((p) => p.setString('bearer_token', token));
+    _prefsInstance.then((p) => p.setString('bearer_token', token));
   }
 
   void setCsrfToken(String token) {
     _csrfToken = token;
-    SharedPreferences.getInstance()
-        .then((p) => p.setString('csrf_token', token));
+    _prefsInstance.then((p) => p.setString('csrf_token', token));
+  }
+
+  /// GET with in-memory cache (stale-while-revalidate pattern).
+  /// Returns cached data immediately if available, then refreshes in background.
+  Future<Map<String, dynamic>> getCached(String endpoint,
+      {Map<String, String>? params, Duration? ttl}) async {
+    final cacheKey = _buildCacheKey(endpoint, params);
+
+    // Fresh cache hit → return immediately
+    final cached = _cache.get(cacheKey);
+    if (cached != null) return cached;
+
+    // Fetch from network
+    final data = await get(endpoint, params);
+    _cache.set(cacheKey, data, ttl);
+    return data;
+  }
+
+  /// Invalidate cache for a specific endpoint or prefix.
+  void invalidateCache([String? prefix]) {
+    if (prefix != null) {
+      _cache.removeByPrefix(prefix);
+    } else {
+      _cache.clear();
+    }
+  }
+
+  String _buildCacheKey(String endpoint, Map<String, String>? params) {
+    if (params == null || params.isEmpty) return endpoint;
+    final sorted = params.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+    return '$endpoint?${sorted.map((e) => '${e.key}=${e.value}').join('&')}';
   }
 }

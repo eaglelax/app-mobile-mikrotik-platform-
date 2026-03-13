@@ -35,7 +35,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadKpis();
     // Auto-refresh every 60 seconds
     _autoRefresh = Timer.periodic(const Duration(seconds: 60), (_) {
-      if (mounted) _loadKpis();
+      if (mounted && WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) _loadKpis();
     });
   }
 

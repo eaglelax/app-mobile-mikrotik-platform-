@@ -18,6 +18,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
   bool _loading = true;
   String _search = '';
   final _searchCtrl = TextEditingController();
+  Timer? _debounce;
   Timer? _refreshTimer;
 
   @override
@@ -26,13 +27,14 @@ class _UsersListScreenState extends State<UsersListScreen> {
     _load();
     _refreshTimer = Timer.periodic(
       const Duration(seconds: 60),
-      (_) => _load(),
+      (_) { if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) _load(); },
     );
   }
 
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _debounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -175,7 +177,12 @@ class _UsersListScreenState extends State<UsersListScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
                   child: TextField(
                     controller: _searchCtrl,
-                    onChanged: (v) => setState(() => _search = v),
+                    onChanged: (v) {
+                      _debounce?.cancel();
+                      _debounce = Timer(const Duration(milliseconds: 300), () {
+                        setState(() => _search = v);
+                      });
+                    },
                     style: TextStyle(color: textColor, fontSize: 15),
                     decoration: InputDecoration(
                       hintText: 'Rechercher un utilisateur...',

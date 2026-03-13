@@ -25,6 +25,7 @@ class _PointsListScreenState extends State<PointsListScreen> {
   bool _loading = false;
   String _search = '';
   final _searchController = TextEditingController();
+  Timer? _debounce;
   Timer? _autoRefresh;
 
   @override
@@ -33,13 +34,14 @@ class _PointsListScreenState extends State<PointsListScreen> {
     _site = widget.site;
     if (_site != null) _load();
     _autoRefresh = Timer.periodic(const Duration(seconds: 60), (_) {
-      if (mounted && _site != null) _load();
+      if (mounted && _site != null && WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) _load();
     });
   }
 
   @override
   void dispose() {
     _autoRefresh?.cancel();
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -203,7 +205,12 @@ class _PointsListScreenState extends State<PointsListScreen> {
                     ),
                     child: TextField(
                       controller: _searchController,
-                      onChanged: (v) => setState(() => _search = v),
+                      onChanged: (v) {
+                        _debounce?.cancel();
+                        _debounce = Timer(const Duration(milliseconds: 300), () {
+                          setState(() => _search = v);
+                        });
+                      },
                       decoration: InputDecoration(
                         hintText: 'Rechercher un point de vente...',
                         hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),

@@ -22,6 +22,9 @@ class _SalesScreenState extends State<SalesScreen> {
   List<Map<String, dynamic>> _sales = [];
   bool _loading = false;
   String _period = 'today';
+  String _search = '';
+  final _searchController = TextEditingController();
+  Timer? _debounce;
   Timer? _autoRefresh;
 
   @override
@@ -37,13 +40,15 @@ class _SalesScreenState extends State<SalesScreen> {
   @override
   void dispose() {
     _autoRefresh?.cancel();
+    _debounce?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
   void _startAutoRefresh() {
     _autoRefresh?.cancel();
     _autoRefresh = Timer.periodic(const Duration(seconds: 60), (_) {
-      if (mounted && _site != null) _load();
+      if (mounted && _site != null && WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) _load();
     });
   }
 
@@ -61,26 +66,34 @@ class _SalesScreenState extends State<SalesScreen> {
   }
 
   void _applyPeriodFilter() {
-    if (_period == 'all') {
-      _sales = _allSales;
-      return;
+    var filtered = _allSales;
+
+    if (_period != 'all') {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+
+      filtered = filtered.where((s) {
+        final dateStr = s['sale_date']?.toString() ?? '';
+        final date = DateTime.tryParse(dateStr);
+        if (date == null) return false;
+
+        return switch (_period) {
+          'today' => date.year == today.year && date.month == today.month && date.day == today.day,
+          'week' => date.isAfter(today.subtract(const Duration(days: 7))),
+          'month' => date.year == today.year && date.month == today.month,
+          _ => true,
+        };
+      }).toList();
     }
 
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    if (_search.isNotEmpty) {
+      final q = _search.toLowerCase();
+      filtered = filtered.where((s) =>
+          (s['username'] ?? '').toString().toLowerCase().contains(q) ||
+          (s['profile_name'] ?? '').toString().toLowerCase().contains(q)).toList();
+    }
 
-    _sales = _allSales.where((s) {
-      final dateStr = s['sale_date']?.toString() ?? '';
-      final date = DateTime.tryParse(dateStr);
-      if (date == null) return false;
-
-      return switch (_period) {
-        'today' => date.year == today.year && date.month == today.month && date.day == today.day,
-        'week' => date.isAfter(today.subtract(const Duration(days: 7))),
-        'month' => date.year == today.year && date.month == today.month,
-        _ => true,
-      };
-    }).toList();
+    _sales = filtered;
   }
 
   num _toNum(dynamic v) => v is num ? v : num.tryParse(v?.toString() ?? '') ?? 0;
@@ -389,6 +402,53 @@ class _SalesScreenState extends State<SalesScreen> {
                             });
                           }, isDark),
                       ],
+                    ),
+                  ),
+                ),
+
+                // Search bar
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? AppTheme.darkCard : Colors.white,
+                        borderRadius: BorderRadius.circular(50),
+                        boxShadow: isDark ? null : [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2)),
+                        ],
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (v) {
+                          _debounce?.cancel();
+                          _debounce = Timer(const Duration(milliseconds: 300), () {
+                            setState(() { _search = v; _applyPeriodFilter(); });
+                          });
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Rechercher une vente...',
+                          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                          prefixIcon: Padding(
+                            padding: const EdgeInsets.only(left: 18, right: 8),
+                            child: Icon(Icons.search_rounded, color: Colors.grey.shade400, size: 22),
+                          ),
+                          prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                          suffixIcon: _search.isNotEmpty
+                              ? Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: IconButton(
+                                    icon: Icon(Icons.close_rounded, color: Colors.grey.shade400, size: 20),
+                                    onPressed: () { _searchController.clear(); setState(() { _search = ''; _applyPeriodFilter(); }); },
+                                  ),
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                        ),
+                      ),
                     ),
                   ),
                 ),

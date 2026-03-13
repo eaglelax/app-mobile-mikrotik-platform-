@@ -23,6 +23,9 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
   List<Map<String, dynamic>> _tickets = [];
   bool _loading = false;
   String? _statusFilter;
+  String _search = '';
+  final _searchController = TextEditingController();
+  Timer? _debounce;
   Timer? _autoRefresh;
 
   @override
@@ -38,13 +41,15 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
   @override
   void dispose() {
     _autoRefresh?.cancel();
+    _debounce?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
   void _startAutoRefresh() {
     _autoRefresh?.cancel();
     _autoRefresh = Timer.periodic(const Duration(seconds: 60), (_) {
-      if (mounted) _load();
+      if (mounted && WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) _load();
     });
   }
 
@@ -102,11 +107,17 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
   }
 
   void _applyFilter() {
-    if (_statusFilter == null) {
-      _tickets = _allTickets;
-    } else {
-      _tickets = _allTickets.where((t) => t['status'] == _statusFilter).toList();
+    var filtered = _allTickets;
+    if (_statusFilter != null) {
+      filtered = filtered.where((t) => t['status'] == _statusFilter).toList();
     }
+    if (_search.isNotEmpty) {
+      final q = _search.toLowerCase();
+      filtered = filtered.where((t) =>
+          (t['code'] ?? '').toString().toLowerCase().contains(q) ||
+          (t['profile'] ?? t['profile_name'] ?? '').toString().toLowerCase().contains(q)).toList();
+    }
+    _tickets = filtered;
   }
 
   @override
@@ -391,6 +402,53 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                         });
                       }),
                     ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Search bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? AppTheme.darkCard : Colors.white,
+                      borderRadius: BorderRadius.circular(50),
+                      boxShadow: isDark ? null : [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2)),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (v) {
+                        _debounce?.cancel();
+                        _debounce = Timer(const Duration(milliseconds: 300), () {
+                          setState(() { _search = v; _applyFilter(); });
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Rechercher un ticket...',
+                        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.only(left: 18, right: 8),
+                          child: Icon(Icons.search_rounded, color: Colors.grey.shade400, size: 22),
+                        ),
+                        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                        suffixIcon: _search.isNotEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: IconButton(
+                                  icon: Icon(Icons.close_rounded, color: Colors.grey.shade400, size: 20),
+                                  onPressed: () { _searchController.clear(); setState(() { _search = ''; _applyFilter(); }); },
+                                ),
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                      ),
+                    ),
                   ),
                 ),
 

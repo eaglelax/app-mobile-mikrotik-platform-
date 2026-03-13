@@ -21,33 +21,38 @@ class TicketService {
       {required String profile,
       required int quantity,
       int? pointId}) async {
-    return await _api.post('/api/generate-tickets.php', {
+    final result = await _api.post('/api/generate-tickets.php', {
       'site_id': siteId,
       'profile_name': profile,
       'quantity': quantity,
       if (pointId != null) 'point_id': pointId,
     });
+    _api.invalidateCache('/api/ticket-batch');
+    _api.invalidateCache('/api/hotspot.php');
+    return result;
   }
 
   Future<Map<String, dynamic>> cancelTicket(int siteId, String ticketId) async {
-    return await _api.post('/api/hotspot.php', {
+    final result = await _api.post('/api/hotspot.php', {
       'site_id': siteId,
       'action': 'remove_user',
       'id': ticketId,
     });
+    _api.invalidateCache('/api/ticket-batch');
+    _api.invalidateCache('/api/hotspot.php');
+    return result;
   }
 
   Future<Map<String, dynamic>> fetchBatches(int siteId) async {
-    return await _api.get('/api/ticket-batches.php', {
-      'site_id': siteId.toString(),
-    });
+    return await _api.getCached('/api/ticket-batches.php',
+        params: {'site_id': siteId.toString()},
+        ttl: const Duration(seconds: 30));
   }
 
   Future<Map<String, dynamic>> fetchBatchDetail(int siteId, String batchId) async {
-    return await _api.get('/api/ticket-batch-detail.php', {
-      'site_id': siteId.toString(),
-      'batch_id': batchId,
-    });
+    return await _api.getCached('/api/ticket-batch-detail.php',
+        params: {'site_id': siteId.toString(), 'batch_id': batchId},
+        ttl: const Duration(seconds: 30));
   }
 
   Future<Map<String, dynamic>> fetchPointTickets(int siteId, int pointId,

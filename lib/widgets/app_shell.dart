@@ -40,9 +40,12 @@ class _AppShellState extends State<AppShell> {
     ReportsScreen(),
     MoreScreen(),
   ];
+  // Track which tabs have been visited (lazy-load: only build on first visit)
+  final _fullTabBuilt = <int>{0}; // Tab 0 (Dashboard) built by default
 
   Widget _buildFullShell(BuildContext context) {
     final notifProvider = context.watch<NotificationProvider>();
+    _fullTabBuilt.add(_currentIndex); // Mark current tab as visited
 
     return PopScope(
       canPop: false,
@@ -56,12 +59,15 @@ class _AppShellState extends State<AppShell> {
       child: Scaffold(
         body: IndexedStack(
           index: _currentIndex,
-          children: List.generate(5, (i) => Navigator(
-            key: _fullNavKeys[i],
-            onGenerateRoute: (_) => MaterialPageRoute(
-              builder: (_) => _fullPages[i],
-            ),
-          )),
+          children: List.generate(5, (i) => _fullTabBuilt.contains(i)
+            ? Navigator(
+                key: _fullNavKeys[i],
+                onGenerateRoute: (_) => MaterialPageRoute(
+                  builder: (_) => _fullPages[i],
+                ),
+              )
+            : const SizedBox.shrink(),
+          ),
         ),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _currentIndex,
@@ -116,9 +122,11 @@ class _AppShellState extends State<AppShell> {
     const FlashSaleScreen(),
     const _GerantSettingsScreen(),
   ];
+  final _gerantTabBuilt = <int>{0};
 
   Widget _buildGerantShell(BuildContext context, AuthProvider auth) {
     final gerantIndex = _currentIndex.clamp(0, 2);
+    _gerantTabBuilt.add(gerantIndex);
 
     return PopScope(
       canPop: false,
@@ -132,12 +140,15 @@ class _AppShellState extends State<AppShell> {
       child: Scaffold(
         body: IndexedStack(
           index: gerantIndex,
-          children: List.generate(3, (i) => Navigator(
-            key: _gerantNavKeys[i],
-            onGenerateRoute: (_) => MaterialPageRoute(
-              builder: (_) => _gerantPages[i],
-            ),
-          )),
+          children: List.generate(3, (i) => _gerantTabBuilt.contains(i)
+            ? Navigator(
+                key: _gerantNavKeys[i],
+                onGenerateRoute: (_) => MaterialPageRoute(
+                  builder: (_) => _gerantPages[i],
+                ),
+              )
+            : const SizedBox.shrink(),
+          ),
         ),
         bottomNavigationBar: NavigationBar(
           selectedIndex: gerantIndex,

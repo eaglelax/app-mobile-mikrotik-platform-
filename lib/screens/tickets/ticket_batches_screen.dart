@@ -26,6 +26,9 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
   List<Map<String, dynamic>> _batches = [];
   bool _loading = false;
   String? _error;
+  String _search = '';
+  final _searchController = TextEditingController();
+  Timer? _debounce;
   Timer? _autoRefresh;
 
   // Generation state
@@ -47,13 +50,15 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
   @override
   void dispose() {
     _autoRefresh?.cancel();
+    _debounce?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
   void _startAutoRefresh() {
     _autoRefresh?.cancel();
     _autoRefresh = Timer.periodic(const Duration(seconds: 60), (_) {
-      if (mounted) _load();
+      if (mounted && WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) _load();
     });
   }
 
@@ -98,6 +103,14 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
       }
     } catch (_) {}
     if (mounted) setState(() => _loadingProfiles = false);
+  }
+
+  List<Map<String, dynamic>> get _filteredBatches {
+    if (_search.isEmpty) return _batches;
+    final q = _search.toLowerCase();
+    return _batches.where((b) =>
+        (b['profile_name'] ?? b['profile'] ?? '').toString().toLowerCase().contains(q) ||
+        (b['point_name'] ?? '').toString().toLowerCase().contains(q)).toList();
   }
 
   void _showGenerateDialog() async {
@@ -668,6 +681,53 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
 
                 const SizedBox(height: 12),
 
+                // Search bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? AppTheme.darkCard : Colors.white,
+                      borderRadius: BorderRadius.circular(50),
+                      boxShadow: isDark ? null : [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2)),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (v) {
+                        _debounce?.cancel();
+                        _debounce = Timer(const Duration(milliseconds: 300), () {
+                          setState(() => _search = v);
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Rechercher un lot...',
+                        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.only(left: 18, right: 8),
+                          child: Icon(Icons.search_rounded, color: Colors.grey.shade400, size: 22),
+                        ),
+                        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                        suffixIcon: _search.isNotEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: IconButton(
+                                  icon: Icon(Icons.close_rounded, color: Colors.grey.shade400, size: 20),
+                                  onPressed: () { _searchController.clear(); setState(() => _search = ''); },
+                                ),
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
                 // Error banner
                 if (_error != null)
                   Padding(
@@ -689,12 +749,12 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
                   ),
 
                 // Count row
-                if (!_loading && _batches.isNotEmpty)
+                if (!_loading && _filteredBatches.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                     child: Row(
                       children: [
-                        Text('${_batches.length} lot${_batches.length > 1 ? 's' : ''}',
+                        Text('${_filteredBatches.length} lot${_filteredBatches.length > 1 ? 's' : ''}',
                             style: TextStyle(
                               fontSize: 13,
                               color: Colors.grey.shade500,
@@ -708,7 +768,7 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
                 Expanded(
                   child: _loading
                       ? const Center(child: CircularProgressIndicator())
-                      : _batches.isEmpty
+                      : _filteredBatches.isEmpty
                           ? ListView(
                               children: [
                                 SizedBox(
@@ -720,14 +780,16 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
                                         Icon(Icons.confirmation_number_outlined,
                                             size: 48, color: Colors.grey.shade300),
                                         const SizedBox(height: 12),
-                                        Text('Aucun lot genere',
+                                        Text(
+                                            _search.isNotEmpty ? 'Aucun resultat' : 'Aucun lot genere',
                                             style: TextStyle(
                                               fontSize: 15,
                                               color: Colors.grey.shade400,
                                               fontWeight: FontWeight.w500,
                                             )),
                                         const SizedBox(height: 6),
-                                        Text('Appuyez sur "Generer" pour creer des tickets',
+                                        Text(
+                                            _search.isNotEmpty ? 'Essayez un autre terme.' : 'Appuyez sur "Generer" pour creer des tickets',
                                             style: TextStyle(
                                               fontSize: 12,
                                               color: Colors.grey.shade400,
@@ -740,8 +802,8 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
                             )
                           : ListView.builder(
                               padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
-                              itemCount: _batches.length,
-                              itemBuilder: (ctx, i) => _buildBatchCard(_batches[i], isDark),
+                              itemCount: _filteredBatches.length,
+                              itemBuilder: (ctx, i) => _buildBatchCard(_filteredBatches[i], isDark),
                             ),
                 ),
               ],

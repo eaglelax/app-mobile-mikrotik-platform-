@@ -23,6 +23,7 @@ class _SitesListScreenState extends State<SitesListScreen> {
   String? _onlineFilter; // 'online', 'offline', or null
   String _search = '';
   final _searchController = TextEditingController();
+  Timer? _debounce;
   final _siteService = SiteService();
   Timer? _autoRefresh;
 
@@ -30,13 +31,14 @@ class _SitesListScreenState extends State<SitesListScreen> {
   void initState() {
     super.initState();
     _autoRefresh = Timer.periodic(const Duration(seconds: 60), (_) {
-      if (mounted) context.read<SiteProvider>().fetchSites();
+      if (mounted && WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) context.read<SiteProvider>().fetchSites();
     });
   }
 
   @override
   void dispose() {
     _autoRefresh?.cancel();
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -180,7 +182,12 @@ class _SitesListScreenState extends State<SitesListScreen> {
                   ),
                   child: TextField(
                     controller: _searchController,
-                    onChanged: (v) => setState(() => _search = v),
+                    onChanged: (v) {
+                      _debounce?.cancel();
+                      _debounce = Timer(const Duration(milliseconds: 300), () {
+                        setState(() => _search = v);
+                      });
+                    },
                     decoration: InputDecoration(
                       hintText: 'Rechercher par nom ou IP...',
                       hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
