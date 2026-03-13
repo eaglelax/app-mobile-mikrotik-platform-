@@ -14,7 +14,7 @@ class TicketService {
     return await _api.get('/api/hotspot.php', {
       ...params,
       'action': 'vouchers',
-    });
+    }, const Duration(seconds: 60));
   }
 
   Future<Map<String, dynamic>> generateBatch(int siteId,
@@ -46,13 +46,15 @@ class TicketService {
   Future<Map<String, dynamic>> fetchBatches(int siteId) async {
     return await _api.getCached('/api/ticket-batches.php',
         params: {'site_id': siteId.toString()},
-        ttl: const Duration(seconds: 30));
+        ttl: const Duration(seconds: 30),
+        timeout: const Duration(seconds: 60));
   }
 
   Future<Map<String, dynamic>> fetchBatchDetail(int siteId, String batchId) async {
     return await _api.getCached('/api/ticket-batch-detail.php',
         params: {'site_id': siteId.toString(), 'batch_id': batchId},
-        ttl: const Duration(seconds: 30));
+        ttl: const Duration(seconds: 30),
+        timeout: const Duration(seconds: 60));
   }
 
   Future<Map<String, dynamic>> fetchPointTickets(int siteId, int pointId,
@@ -62,7 +64,7 @@ class TicketService {
       'point_id': pointId.toString(),
       'page': page.toString(),
       'limit': limit.toString(),
-    });
+    }, const Duration(seconds: 60));
   }
 
   Future<Map<String, dynamic>> fetchAutoGenBatches(int siteId) async {

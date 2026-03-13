@@ -210,7 +210,7 @@ class ApiClient {
   /// GET with in-memory cache (stale-while-revalidate pattern).
   /// Returns cached data immediately if available, then refreshes in background.
   Future<Map<String, dynamic>> getCached(String endpoint,
-      {Map<String, String>? params, Duration? ttl}) async {
+      {Map<String, String>? params, Duration? ttl, Duration? timeout}) async {
     final cacheKey = _buildCacheKey(endpoint, params);
 
     // Fresh cache hit → return immediately
@@ -218,7 +218,7 @@ class ApiClient {
     if (cached != null) return cached;
 
     // Fetch from network
-    final data = await get(endpoint, params);
+    final data = await get(endpoint, params, timeout);
     _cache.set(cacheKey, data, ttl);
     return data;
   }
