@@ -108,7 +108,6 @@ class _UsersListScreenState extends State<UsersListScreen> {
     final cardColor = isDark ? AppTheme.darkCard : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF1A1D21);
     final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade500;
-    final searchFill = isDark ? AppTheme.darkSurface : const Color(0xFFEEF0F5);
     final filtered = _filtered;
 
     return Scaffold(
@@ -174,47 +173,47 @@ class _UsersListScreenState extends State<UsersListScreen> {
               // ── Search bar ──
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-                  child: TextField(
-                    controller: _searchCtrl,
-                    onChanged: (v) {
-                      _debounce?.cancel();
-                      _debounce = Timer(const Duration(milliseconds: 300), () {
-                        setState(() => _search = v);
-                      });
-                    },
-                    style: TextStyle(color: textColor, fontSize: 15),
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher un utilisateur...',
-                      hintStyle: TextStyle(
-                          color: subtitleColor, fontSize: 14),
-                      prefixIcon:
-                          Icon(Icons.search, color: subtitleColor, size: 20),
-                      suffixIcon: _search.isNotEmpty
-                          ? GestureDetector(
-                              onTap: () {
-                                _searchCtrl.clear();
-                                setState(() => _search = '');
-                              },
-                              child: Icon(Icons.close,
-                                  color: subtitleColor, size: 18),
-                            )
-                          : null,
-                      filled: true,
-                      fillColor: searchFill,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
-                      border: OutlineInputBorder(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(50),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? AppTheme.darkCard : Colors.white,
                         borderRadius: BorderRadius.circular(50),
-                        borderSide: BorderSide.none,
+                        boxShadow: isDark ? null : [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2)),
+                        ],
                       ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(50),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(50),
-                        borderSide: BorderSide.none,
+                      child: TextField(
+                        controller: _searchCtrl,
+                        onChanged: (v) {
+                          _debounce?.cancel();
+                          _debounce = Timer(const Duration(milliseconds: 300), () {
+                            setState(() => _search = v);
+                          });
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Rechercher un utilisateur...',
+                          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                          prefixIcon: Padding(
+                            padding: const EdgeInsets.only(left: 18, right: 8),
+                            child: Icon(Icons.search_rounded, color: Colors.grey.shade400, size: 22),
+                          ),
+                          prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                          suffixIcon: _search.isNotEmpty
+                              ? Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: IconButton(
+                                    icon: Icon(Icons.close_rounded, color: Colors.grey.shade400, size: 20),
+                                    onPressed: () { _searchCtrl.clear(); setState(() => _search = ''); },
+                                  ),
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                        ),
                       ),
                     ),
                   ),

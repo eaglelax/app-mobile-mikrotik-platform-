@@ -184,8 +184,10 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
 
               // Search bar
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(50),
+                  child: Container(
                   decoration: BoxDecoration(
                     color: isDark ? AppTheme.darkCard : Colors.white,
                     borderRadius: BorderRadius.circular(50),
@@ -219,6 +221,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                       contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
                     ),
                   ),
+                ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -462,44 +465,47 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
 
                 // Search bar
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isDark ? AppTheme.darkCard : Colors.white,
-                      borderRadius: BorderRadius.circular(50),
-                      boxShadow: isDark ? null : [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2)),
-                      ],
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: (v) {
-                        _debounce?.cancel();
-                        _debounce = Timer(const Duration(milliseconds: 300), () {
-                          setState(() { _search = v; _applyFilter(); });
-                        });
-                      },
-                      decoration: InputDecoration(
-                        hintText: 'Rechercher un ticket...',
-                        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                        prefixIcon: Padding(
-                          padding: const EdgeInsets.only(left: 18, right: 8),
-                          child: Icon(Icons.search_rounded, color: Colors.grey.shade400, size: 22),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(50),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? AppTheme.darkCard : Colors.white,
+                        borderRadius: BorderRadius.circular(50),
+                        boxShadow: isDark ? null : [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2)),
+                        ],
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (v) {
+                          _debounce?.cancel();
+                          _debounce = Timer(const Duration(milliseconds: 300), () {
+                            setState(() { _search = v; _applyFilter(); });
+                          });
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Rechercher un ticket...',
+                          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                          prefixIcon: Padding(
+                            padding: const EdgeInsets.only(left: 18, right: 8),
+                            child: Icon(Icons.search_rounded, color: Colors.grey.shade400, size: 22),
+                          ),
+                          prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                          suffixIcon: _search.isNotEmpty
+                              ? Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: IconButton(
+                                    icon: Icon(Icons.close_rounded, color: Colors.grey.shade400, size: 20),
+                                    onPressed: () { _searchController.clear(); setState(() { _search = ''; _applyFilter(); }); },
+                                  ),
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
                         ),
-                        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                        suffixIcon: _search.isNotEmpty
-                            ? Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: IconButton(
-                                  icon: Icon(Icons.close_rounded, color: Colors.grey.shade400, size: 20),
-                                  onPressed: () { _searchController.clear(); setState(() { _search = ''; _applyFilter(); }); },
-                                ),
-                              )
-                            : null,
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
                       ),
                     ),
                   ),
