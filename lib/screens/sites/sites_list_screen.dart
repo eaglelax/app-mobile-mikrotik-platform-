@@ -11,6 +11,7 @@ import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
 import 'site_detail_screen.dart';
 import 'site_form_screen.dart';
+import '../../widgets/top_notification.dart';
 
 class SitesListScreen extends StatefulWidget {
   const SitesListScreen({super.key});
@@ -136,6 +137,11 @@ class _SitesListScreenState extends State<SitesListScreen> {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final textColor = isDark ? Colors.white : Colors.black87;
         final msg = result['message']?.toString() ?? 'Tickets supprimés avec succès';
+        TopNotification.show(
+          context,
+          title: 'Suppression terminée',
+          message: '${site.nom} — $msg',
+        );
         showDialog(
           context: context,
           builder: (ctx) => Dialog(

@@ -10,6 +10,7 @@ import '../../models/point.dart';
 import '../../services/mikhmon_service.dart';
 import '../../services/ticket_service.dart';
 import '../../services/point_service_api.dart';
+import '../../widgets/top_notification.dart';
 
 class GenerateTicketsScreen extends StatefulWidget {
   final Site site;
@@ -107,7 +108,12 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
           _synced = totalSynced;
           _generating = false;
         });
-        // Show success dialog
+        // Show top notification + success dialog
+        TopNotification.show(
+          context,
+          title: 'Génération terminée',
+          message: '${allTickets.length} ticket(s) générés — $totalSynced synchronisés',
+        );
         _showSuccessDialog(allTickets.length, totalSynced);
       }
     } catch (e) {
