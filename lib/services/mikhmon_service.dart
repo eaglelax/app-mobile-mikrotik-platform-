@@ -114,4 +114,9 @@ class MikhmonService {
         .get('/api/hotspot.php', {'site_id': siteId.toString(), 'action': 'logs', 'topic': topic});
   }
 
+  Future<Map<String, dynamic>> syncTicketsToDb(int siteId) async {
+    return await _api.post(
+        '/api/hotspot.php', {'site_id': siteId, 'action': 'sync_to_db'}, const Duration(minutes: 3));
+  }
+
 }

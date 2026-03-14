@@ -64,6 +64,12 @@ class _SitesListScreenState extends State<SitesListScreen> {
               Text(site.nom, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               const SizedBox(height: 16),
               ListTile(
+                leading: const Icon(Icons.sync, color: AppTheme.primary),
+                title: const Text('Synchroniser tickets'),
+                subtitle: const Text('Importe les tickets du routeur dans la base'),
+                onTap: () => Navigator.pop(ctx, 'sync_tickets'),
+              ),
+              ListTile(
                 leading: const Icon(Icons.delete_sweep, color: Colors.orange),
                 title: const Text('Supprimer tous les tickets'),
                 subtitle: const Text('Supprime tous les tickets de tous les points de vente'),
@@ -87,10 +93,56 @@ class _SitesListScreenState extends State<SitesListScreen> {
       ),
     );
     if (!mounted || action == null) return;
-    if (action == 'delete_tickets') {
+    if (action == 'sync_tickets') {
+      await _syncTickets(site);
+    } else if (action == 'delete_tickets') {
       await _deleteAllTickets(site);
     } else if (action == 'delete_site') {
       await _deleteSite(site, provider);
+    }
+  }
+
+  Future<void> _syncTickets(Site site) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(children: [
+          const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+          const SizedBox(width: 12),
+          Text('Synchronisation des tickets de "${site.nom}"...'),
+        ]),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 60),
+      ),
+    );
+
+    try {
+      final result = await MikhmonService().syncTicketsToDb(site.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
+      final success = result['success'] == true;
+      final inserted = result['inserted'] ?? 0;
+      final updated = result['updated'] ?? 0;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success
+              ? '$inserted tickets importes, $updated mis a jour'
+              : (result['error']?.toString() ?? 'Erreur de synchronisation')),
+          backgroundColor: success ? AppTheme.success : AppTheme.danger,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
+      final errStr = e.toString();
+      final isTimeout = errStr.contains('TimeoutException') || errStr.contains('502');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isTimeout
+              ? 'Synchronisation en cours en arriere-plan...'
+              : 'Erreur: $e'),
+          backgroundColor: isTimeout ? Colors.orange : AppTheme.danger,
+        ),
+      );
     }
   }
 
