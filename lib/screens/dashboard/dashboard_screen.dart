@@ -9,6 +9,7 @@ import '../../services/kpi_service.dart';
 import '../../models/site.dart';
 import '../../utils/formatters.dart';
 import '../notifications/notifications_screen.dart';
+import '../activity/activity_logs_screen.dart';
 import '../tickets/ticket_batches_screen.dart';
 import '../flash_sale/flash_sale_screen.dart';
 import '../sites/site_detail_screen.dart';
@@ -161,6 +162,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ),
                               ],
                             ),
+                          ),
+                          // Activity history
+                          IconButton(
+                            icon: const Icon(Icons.history, size: 24),
+                            tooltip: 'Historique',
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ActivityLogsScreen(),
+                                ),
+                              );
+                            },
                           ),
                           // Notification bell
                           Stack(
