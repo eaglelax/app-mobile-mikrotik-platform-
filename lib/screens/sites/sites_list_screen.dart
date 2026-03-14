@@ -133,11 +133,73 @@ class _SitesListScreenState extends State<SitesListScreen> {
       ScaffoldMessenger.of(context).clearSnackBars();
       final success = result['success'] == true;
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message']?.toString() ?? 'Tickets supprimes avec succes sur "${site.nom}"'),
-            backgroundColor: AppTheme.success,
-            duration: const Duration(seconds: 4),
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final textColor = isDark ? Colors.white : Colors.black87;
+        final msg = result['message']?.toString() ?? 'Tickets supprimés avec succès';
+        showDialog(
+          context: context,
+          builder: (ctx) => Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            backgroundColor: isDark ? AppTheme.darkCard : Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 64, height: 64,
+                    decoration: BoxDecoration(
+                      color: AppTheme.success.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.check_circle, color: AppTheme.success, size: 36),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Suppression terminée',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: textColor),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(children: [
+                          const Icon(Icons.router, size: 18, color: AppTheme.primary),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(site.nom, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: textColor))),
+                        ]),
+                        const SizedBox(height: 10),
+                        Row(children: [
+                          const Icon(Icons.delete_sweep, size: 18, color: AppTheme.primary),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(msg, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: textColor))),
+                        ]),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
+                      child: const Text('OK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       } else {
