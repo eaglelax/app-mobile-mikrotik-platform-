@@ -60,6 +60,11 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
             (profileData['profiles'] as List? ?? []).cast<Map<String, dynamic>>();
       }
       _points = results[1] as List<Point>;
+      // Pré-sélectionner si un seul point actif
+      final active = _points.where((p) => p.isActive).toList();
+      if (active.length == 1) {
+        _selectedPoint = active.first;
+      }
     } catch (_) {}
     if (mounted) setState(() => _loadingProfiles = false);
   }
@@ -68,6 +73,12 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
     if (_selectedProfiles.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Sélectionnez au moins un profil')),
+      );
+      return;
+    }
+    if (_selectedPoint == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sélectionnez un point de vente')),
       );
       return;
     }
@@ -505,11 +516,17 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
 
                                 const SizedBox(height: 16),
 
-                                // Point de vente selector
-                                Text('Point de vente', style: TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.w600,
-                                  color: _isDark ? Colors.white70 : Colors.grey.shade700,
-                                )),
+                                // Point de vente selector (obligatoire)
+                                Row(
+                                  children: [
+                                    Text('Point de vente', style: TextStyle(
+                                      fontSize: 13, fontWeight: FontWeight.w600,
+                                      color: _isDark ? Colors.white70 : Colors.grey.shade700,
+                                    )),
+                                    const SizedBox(width: 4),
+                                    Text('*', style: TextStyle(fontSize: 13, color: Colors.red.shade400, fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
                                 const SizedBox(height: 8),
                                 if (activePoints.isEmpty)
                                   Container(
@@ -519,9 +536,9 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Row(children: [
-                                      Icon(Icons.info_outline, size: 16, color: Colors.grey.shade400),
+                                      Icon(Icons.warning_amber, size: 16, color: Colors.orange.shade400),
                                       const SizedBox(width: 8),
-                                      Text('Aucun point de vente configuré', style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
+                                      Expanded(child: Text('Aucun point de vente configuré. Créez un point avant de générer des tickets.', style: TextStyle(fontSize: 13, color: Colors.orange.shade400))),
                                     ]),
                                   )
                                 else
@@ -530,13 +547,9 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                                       child: DropdownButton<int>(
                                         isExpanded: true,
                                         value: _selectedPoint?.id,
-                                        hint: Text('Tous (optionnel)', style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
+                                        hint: Text('Sélectionnez un point', style: TextStyle(color: Colors.red.shade300, fontSize: 14)),
                                         dropdownColor: _isDark ? AppTheme.darkCard : Colors.white,
                                         items: [
-                                          DropdownMenuItem<int>(
-                                            value: null,
-                                            child: Text('Tous les points', style: TextStyle(fontSize: 14, color: Colors.grey.shade400)),
-                                          ),
                                           ...activePoints.map((p) {
                                             return DropdownMenuItem<int>(
                                               value: p.id,
@@ -608,7 +621,7 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                                   height: 52,
                                   child: ElevatedButton.icon(
                                     onPressed:
-                                        (_generating || _selectedProfiles.isEmpty) ? null : _generate,
+                                        (_generating || _selectedProfiles.isEmpty || _selectedPoint == null) ? null : _generate,
                                     icon: _generating
                                         ? const SizedBox(
                                             width: 18,
