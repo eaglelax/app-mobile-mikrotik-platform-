@@ -125,7 +125,7 @@ class MikhmonService {
       'site_id': siteId,
       'action': 'delete_db_tickets',
       if (pointId != null) 'point_id': pointId,
-    });
+    }, const Duration(minutes: 3));
   }
 
 }

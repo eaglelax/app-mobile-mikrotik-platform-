@@ -247,8 +247,7 @@ class _SitesListScreenState extends State<SitesListScreen> {
       ),
     );
 
-    try {
-      final result = await MikhmonService().deleteDbTickets(site.id);
+    MikhmonService().deleteDbTickets(site.id).then((result) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).clearSnackBars();
       final success = result['success'] == true;
@@ -261,13 +260,20 @@ class _SitesListScreenState extends State<SitesListScreen> {
           backgroundColor: success ? AppTheme.success : AppTheme.danger,
         ),
       );
-    } catch (e) {
+    }).catchError((e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).clearSnackBars();
+      final errStr = e.toString();
+      final isTimeout = errStr.contains('TimeoutException') || errStr.contains('502');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
+        SnackBar(
+          content: Text(isTimeout
+              ? 'Suppression en cours en arriere-plan...'
+              : 'Erreur: $e'),
+          backgroundColor: isTimeout ? Colors.orange : AppTheme.danger,
+        ),
       );
-    }
+    });
   }
 
   Future<void> _deleteSite(Site site, SiteProvider provider) async {
