@@ -65,10 +65,22 @@ class _SitesListScreenState extends State<SitesListScreen> {
               Text(site.nom, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               const SizedBox(height: 16),
               ListTile(
+                leading: const Icon(Icons.sync, color: AppTheme.primary),
+                title: const Text('Synchroniser tickets'),
+                subtitle: const Text('Importe les tickets du routeur dans la base'),
+                onTap: () => Navigator.pop(ctx, 'sync_tickets'),
+              ),
+              ListTile(
                 leading: const Icon(Icons.delete_sweep, color: Colors.orange),
-                title: const Text('Supprimer tous les tickets'),
-                subtitle: const Text('Supprime tous les tickets de tous les points de vente'),
+                title: const Text('Supprimer tickets routeur'),
+                subtitle: const Text('Supprime tous les tickets du routeur MikroTik'),
                 onTap: () => Navigator.pop(ctx, 'delete_tickets'),
+              ),
+              ListTile(
+                leading: Icon(Icons.storage, color: Colors.red.shade400),
+                title: const Text('Supprimer tickets base de donnees'),
+                subtitle: const Text('Supprime tous les tickets de la base de donnees'),
+                onTap: () => Navigator.pop(ctx, 'delete_db_tickets'),
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: AppTheme.danger),
@@ -88,10 +100,58 @@ class _SitesListScreenState extends State<SitesListScreen> {
       ),
     );
     if (!mounted || action == null) return;
-    if (action == 'delete_tickets') {
+    if (action == 'sync_tickets') {
+      await _syncTickets(site);
+    } else if (action == 'delete_tickets') {
       await _deleteAllTickets(site);
+    } else if (action == 'delete_db_tickets') {
+      await _deleteDbTickets(site);
     } else if (action == 'delete_site') {
       await _deleteSite(site, provider);
+    }
+  }
+
+  Future<void> _syncTickets(Site site) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(children: [
+          const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+          const SizedBox(width: 12),
+          Text('Synchronisation des tickets de "${site.nom}"...'),
+        ]),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 60),
+      ),
+    );
+
+    try {
+      final result = await MikhmonService().syncTicketsToDb(site.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
+      final success = result['success'] == true;
+      final inserted = result['inserted'] ?? 0;
+      final updated = result['updated'] ?? 0;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success
+              ? '$inserted tickets importes, $updated mis a jour'
+              : (result['error']?.toString() ?? 'Erreur de synchronisation')),
+          backgroundColor: success ? AppTheme.success : AppTheme.danger,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
+      final errStr = e.toString();
+      final isTimeout = errStr.contains('TimeoutException') || errStr.contains('502');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isTimeout
+              ? 'Synchronisation en cours en arriere-plan...'
+              : 'Erreur: $e'),
+          backgroundColor: isTimeout ? Colors.orange : AppTheme.danger,
+        ),
+      );
     }
   }
 
@@ -223,6 +283,59 @@ class _SitesListScreenState extends State<SitesListScreen> {
         SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
       );
     });
+  }
+
+  Future<void> _deleteDbTickets(Site site) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer tickets de la base ?'),
+        content: Text('Tous les tickets du site "${site.nom}" seront definitivement supprimes de la base de donnees.\n\nLes tickets sur le routeur ne seront pas affectes.\n\nCette action est irreversible.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade400),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(children: [
+          const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+          const SizedBox(width: 12),
+          Text('Suppression des tickets DB de "${site.nom}"...'),
+        ]),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 30),
+      ),
+    );
+
+    try {
+      final result = await MikhmonService().deleteDbTickets(site.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
+      final success = result['success'] == true;
+      final deleted = result['deleted'] ?? 0;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success
+              ? '$deleted tickets supprimes de la base'
+              : (result['error']?.toString() ?? 'Erreur')),
+          backgroundColor: success ? AppTheme.success : AppTheme.danger,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
+      );
+    }
   }
 
   Future<void> _deleteSite(Site site, SiteProvider provider) async {

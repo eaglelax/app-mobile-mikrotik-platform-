@@ -110,7 +110,8 @@ class _QuickPrintScreenState extends State<QuickPrintScreen> {
       }
     } catch (e) {
       if (mounted) {
-        final isTimeout = e.toString().contains('TimeoutException');
+        final errStr = e.toString();
+        final isTimeout = errStr.contains('TimeoutException') || errStr.contains('502');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
