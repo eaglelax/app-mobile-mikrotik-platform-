@@ -391,7 +391,8 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
                                 _load();
                               } catch (e) {
                                 if (!ctx.mounted) return;
-                                final isTimeout = e.toString().contains('TimeoutException');
+                                final errStr = e.toString();
+                                final isTimeout = errStr.contains('TimeoutException') || errStr.contains('502');
                                 if (isTimeout) {
                                   Navigator.pop(ctx);
                                   if (mounted) {

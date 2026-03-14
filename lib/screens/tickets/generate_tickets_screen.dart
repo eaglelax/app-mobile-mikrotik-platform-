@@ -111,7 +111,8 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
     } catch (e) {
       if (mounted) {
         // Timeout = la génération continue en arrière-plan sur le serveur
-        final isTimeout = e.toString().contains('TimeoutException');
+        final errStr = e.toString();
+        final isTimeout = errStr.contains('TimeoutException') || errStr.contains('502');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
