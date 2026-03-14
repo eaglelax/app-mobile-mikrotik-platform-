@@ -110,8 +110,29 @@ class _QuickPrintScreenState extends State<QuickPrintScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final isTimeout = e.toString().contains('TimeoutException');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  isTimeout ? Icons.cloud_sync : Icons.error_outline,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isTimeout
+                        ? 'Génération en cours en arrière-plan. Les tickets seront disponibles dans quelques instants.'
+                        : 'Erreur: $e',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: isTimeout ? Colors.orange : AppTheme.danger,
+            duration: Duration(seconds: isTimeout ? 6 : 4),
+          ),
         );
         setState(() => _generating = false);
       }

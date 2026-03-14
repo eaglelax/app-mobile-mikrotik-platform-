@@ -595,15 +595,34 @@ class _PointDetailScreenState extends State<PointDetailScreen>
                                 _load(); // Refresh
                               } catch (e) {
                                 if (!ctx.mounted) return;
-                                setSheetState(() => _generating = false);
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                  SnackBar(
-                                    backgroundColor: AppTheme.danger,
-                                    content: Text('Erreur: $e',
-                                        style: const TextStyle(
-                                            color: Colors.white)),
-                                  ),
-                                );
+                                final isTimeout = e.toString().contains('TimeoutException');
+                                if (isTimeout) {
+                                  Navigator.pop(ctx);
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        backgroundColor: Colors.orange,
+                                        duration: Duration(seconds: 6),
+                                        content: Row(children: [
+                                          Icon(Icons.cloud_sync, color: Colors.white, size: 20),
+                                          SizedBox(width: 10),
+                                          Expanded(child: Text('Génération en cours en arrière-plan. Les tickets seront disponibles dans quelques instants.', style: TextStyle(color: Colors.white))),
+                                        ]),
+                                      ),
+                                    );
+                                    _load();
+                                  }
+                                } else {
+                                  setSheetState(() => _generating = false);
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(
+                                      backgroundColor: AppTheme.danger,
+                                      content: Text('Erreur: $e',
+                                          style: const TextStyle(
+                                              color: Colors.white)),
+                                    ),
+                                  );
+                                }
                               }
                             },
                       style: ElevatedButton.styleFrom(

@@ -301,8 +301,25 @@ class _VouchersScreenState extends State<VouchersScreen> {
                           _load();
                         } catch (e) {
                           if (!ctx.mounted) return;
-                          setSheetState(() => generating = false);
-                          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(backgroundColor: AppTheme.danger, content: Text('Erreur: $e', style: const TextStyle(color: Colors.white))));
+                          final isTimeout = e.toString().contains('TimeoutException');
+                          if (isTimeout) {
+                            Navigator.pop(ctx);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                backgroundColor: Colors.orange,
+                                duration: const Duration(seconds: 6),
+                                content: Row(children: [
+                                  const Icon(Icons.cloud_sync, color: Colors.white, size: 20),
+                                  const SizedBox(width: 10),
+                                  const Expanded(child: Text('Génération en cours en arrière-plan. Les tickets seront disponibles dans quelques instants.', style: TextStyle(color: Colors.white))),
+                                ]),
+                              ));
+                              _load();
+                            }
+                          } else {
+                            setSheetState(() => generating = false);
+                            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(backgroundColor: AppTheme.danger, content: Text('Erreur: $e', style: const TextStyle(color: Colors.white))));
+                          }
                         }
                       },
                       style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary, disabledBackgroundColor: AppTheme.primary.withValues(alpha: 0.4), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 0),
