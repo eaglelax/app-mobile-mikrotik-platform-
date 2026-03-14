@@ -119,4 +119,13 @@ class MikhmonService {
         '/api/hotspot.php', {'site_id': siteId, 'action': 'sync_to_db'}, const Duration(minutes: 3));
   }
 
+  Future<Map<String, dynamic>> deleteDbTickets(int siteId, {int? pointId}) async {
+    return await _api.post(
+        '/api/hotspot.php', {
+      'site_id': siteId,
+      'action': 'delete_db_tickets',
+      if (pointId != null) 'point_id': pointId,
+    });
+  }
+
 }
