@@ -1,9 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+
+import '../../utils/pdf_ticket_builder.dart';
 import '../../config/theme.dart';
 import '../../models/site.dart';
 import '../../services/mikhmon_service.dart';
@@ -141,89 +140,10 @@ class _QuickPrintScreenState extends State<QuickPrintScreen> {
   }
 
   Future<File> _generatePdf(List<Map<String, dynamic>> tickets) async {
-    final pdf = pw.Document();
-    final siteName = widget.site.nom;
-    final profile = tickets.isNotEmpty ? tickets[0]['profile'] ?? '' : '';
-    final price = tickets.isNotEmpty ? tickets[0]['price'] : null;
-
-    const ticketsPerRow = 3;
-    const ticketsPerPage = 15;
-
-    for (var pageStart = 0; pageStart < tickets.length; pageStart += ticketsPerPage) {
-      final pageEnd = (pageStart + ticketsPerPage > tickets.length)
-          ? tickets.length
-          : pageStart + ticketsPerPage;
-      final pageTickets = tickets.sublist(pageStart, pageEnd);
-
-      pdf.addPage(pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(20),
-        build: (context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(siteName, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                  pw.Text('Profil: $profile', style: const pw.TextStyle(fontSize: 11)),
-                ],
-              ),
-              if (price != null)
-                pw.Text('Prix: $price FCFA', style: const pw.TextStyle(fontSize: 10)),
-              pw.SizedBox(height: 10),
-              pw.Divider(),
-              pw.SizedBox(height: 10),
-              pw.Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: pageTickets.map((t) {
-                  return pw.Container(
-                    width: (PdfPageFormat.a4.width - 40 - 16) / ticketsPerRow,
-                    padding: const pw.EdgeInsets.all(8),
-                    decoration: pw.BoxDecoration(
-                      border: pw.Border.all(width: 0.5),
-                      borderRadius: pw.BorderRadius.circular(4),
-                    ),
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.center,
-                      children: [
-                        pw.Text(siteName, style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
-                        pw.SizedBox(height: 2),
-                        pw.Text(profile, style: const pw.TextStyle(fontSize: 6)),
-                        pw.SizedBox(height: 4),
-                        pw.Container(
-                          padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                          decoration: pw.BoxDecoration(
-                            color: PdfColors.grey100,
-                            borderRadius: pw.BorderRadius.circular(3),
-                          ),
-                          child: pw.Text(t['code'] ?? t['name'] ?? '',
-                              style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, letterSpacing: 1)),
-                        ),
-                        pw.SizedBox(height: 2),
-                        pw.Text('Mot de passe: ${t['password'] ?? t['code'] ?? t['name'] ?? ''}',
-                            style: const pw.TextStyle(fontSize: 6)),
-                        if (price != null) ...[
-                          pw.SizedBox(height: 2),
-                          pw.Text('$price FCFA', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                        ],
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          );
-        },
-      ));
-    }
-
-    final dir = await getTemporaryDirectory();
-    final file = File(
-        '${dir.path}/tickets_${siteName.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.pdf');
-    await file.writeAsBytes(await pdf.save());
-    return file;
+    return generateTicketsPdf(
+      tickets: tickets,
+      siteName: widget.site.nom,
+    );
   }
 
   Future<void> _sharePdf(List<Map<String, dynamic>> tickets) async {

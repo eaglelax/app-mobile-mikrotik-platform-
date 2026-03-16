@@ -7,6 +7,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../config/theme.dart';
 import '../../models/site.dart';
 import '../../models/point.dart';
@@ -14,6 +15,7 @@ import '../../providers/site_provider.dart';
 import '../../services/ticket_service.dart';
 import '../../services/mikhmon_service.dart';
 import '../../services/point_service_api.dart';
+import '../../utils/pdf_ticket_builder.dart';
 
 class TicketBatchesScreen extends StatefulWidget {
   final Site? site;
@@ -43,6 +45,9 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
   List<Point> _points = [];
   List<Map<String, dynamic>> _servers = [];
   bool _loadingProfiles = false;
+
+  // PDF state for batch list actions
+  String? _pdfBusyBatchId;
 
   @override
   void initState() {
@@ -898,9 +903,97 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
     );
   }
 
+  // ── Batch list PDF actions ────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> _fetchBatchTickets(Map<String, dynamic> batch) async {
+    final batchId = batch['batch_id']?.toString();
+    if (batchId == null || _site == null) return [];
+    final data = await _service.fetchBatchDetail(_site!.id, batchId);
+    if (data['success'] == true) {
+      return (data['tickets'] as List? ?? []).cast<Map<String, dynamic>>();
+    }
+    return [];
+  }
+
+  Future<void> _downloadBatchPdf(Map<String, dynamic> batch) async {
+    final batchId = batch['batch_id']?.toString() ?? '';
+    if (_pdfBusyBatchId != null) return;
+    setState(() => _pdfBusyBatchId = batchId);
+    try {
+      final tickets = await _fetchBatchTickets(batch);
+      final available = tickets.where((t) => t['status'] != 'used').toList();
+      if (available.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Aucun ticket disponible a telecharger')),
+          );
+        }
+        return;
+      }
+      final profileName = batch['profile_name'] ?? 'tickets';
+      final file = await generateTicketsPdf(
+        tickets: available,
+        siteName: _site!.nom,
+        fileName: '${profileName}_x${available.length}_${DateTime.now().millisecondsSinceEpoch}',
+        toDownloads: true,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF sauvegarde: ${file.path.split('/').last}'),
+            backgroundColor: AppTheme.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _pdfBusyBatchId = null);
+    }
+  }
+
+  Future<void> _shareBatchPdf(Map<String, dynamic> batch) async {
+    final batchId = batch['batch_id']?.toString() ?? '';
+    if (_pdfBusyBatchId != null) return;
+    setState(() => _pdfBusyBatchId = batchId);
+    try {
+      final tickets = await _fetchBatchTickets(batch);
+      final available = tickets.where((t) => t['status'] != 'used').toList();
+      if (available.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Aucun ticket disponible a partager')),
+          );
+        }
+        return;
+      }
+      final file = await generateTicketsPdf(
+        tickets: available,
+        siteName: _site!.nom,
+      );
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: '${batch['profile_name'] ?? 'Tickets'} x${available.length}',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _pdfBusyBatchId = null);
+    }
+  }
+
   // ── Batch Card ────────────────────────────────────────────────────
 
   Widget _buildBatchCard(Map<String, dynamic> b, bool isDark) {
+    final batchId = b['batch_id']?.toString() ?? '';
     final quantity = b['quantity'] ?? b['quantity_generated'] ?? b['count'] ?? 0;
     final available = b['available_count'] ?? 0;
     final used = b['used_count'] ?? 0;
@@ -998,19 +1091,49 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
               onPressed: () => _downloadBatchPdf(b),
             ),
 
-            // Status badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(statusLabel,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  )),
+            // PDF actions + status
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Download / Share icons
+                if (_pdfBusyBatchId == batchId)
+                  const SizedBox(
+                    width: 18, height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GestureDetector(
+                        onTap: () => _downloadBatchPdf(b),
+                        child: Icon(Icons.picture_as_pdf, size: 18,
+                            color: isDark ? Colors.white54 : Colors.grey.shade500),
+                      ),
+                      const SizedBox(width: 10),
+                      GestureDetector(
+                        onTap: () => _shareBatchPdf(b),
+                        child: Icon(Icons.share, size: 16,
+                            color: isDark ? Colors.white54 : Colors.grey.shade500),
+                      ),
+                    ],
+                  ),
+                const SizedBox(height: 6),
+                // Status badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(statusLabel,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      )),
+                ),
+              ],
             ),
           ],
         ),
@@ -1166,6 +1289,7 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
           batch: batch,
           isDark: isDark,
           service: _service,
+          siteName: _site!.nom,
         );
       },
     );
@@ -1180,6 +1304,7 @@ class _BatchDetailSheet extends StatefulWidget {
   final Map<String, dynamic> batch;
   final bool isDark;
   final TicketService service;
+  final String siteName;
 
   const _BatchDetailSheet({
     required this.siteId,
@@ -1187,6 +1312,7 @@ class _BatchDetailSheet extends StatefulWidget {
     required this.batch,
     required this.isDark,
     required this.service,
+    required this.siteName,
   });
 
   @override
@@ -1255,6 +1381,97 @@ class _BatchDetailSheetState extends State<_BatchDetailSheet> {
     );
   }
 
+  Widget _actionIcon(IconData icon, String tooltip, bool isDark, VoidCallback? onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon,
+            size: 20,
+            color: onTap != null
+                ? (isDark ? Colors.white70 : Colors.grey.shade600)
+                : Colors.grey.shade300),
+      ),
+    );
+  }
+
+  bool _pdfBusy = false;
+
+  Future<void> _sharePdf() async {
+    if (_tickets.isEmpty || _pdfBusy) return;
+    setState(() => _pdfBusy = true);
+    try {
+      final available = _tickets.where((t) => t['status'] != 'used').toList();
+      if (available.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Aucun ticket disponible a partager')),
+          );
+        }
+        return;
+      }
+      final file = await generateTicketsPdf(
+        tickets: available,
+        siteName: widget.siteName,
+      );
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: '${widget.batch['profile_name'] ?? 'Tickets'} x${available.length}',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _pdfBusy = false);
+    }
+  }
+
+  Future<void> _downloadPdf() async {
+    if (_tickets.isEmpty || _pdfBusy) return;
+    setState(() => _pdfBusy = true);
+    try {
+      final available = _tickets.where((t) => t['status'] != 'used').toList();
+      if (available.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Aucun ticket disponible a telecharger')),
+          );
+        }
+        return;
+      }
+      final profileName = widget.batch['profile_name'] ?? 'tickets';
+      final file = await generateTicketsPdf(
+        tickets: available,
+        siteName: widget.siteName,
+        fileName: '${profileName}_x${available.length}_${DateTime.now().millisecondsSinceEpoch}',
+        toDownloads: true,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF sauvegarde: ${file.path.split('/').last}'),
+            backgroundColor: AppTheme.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _pdfBusy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDark;
@@ -1319,22 +1536,23 @@ class _BatchDetailSheetState extends State<_BatchDetailSheet> {
                     ],
                   ),
                 ),
+                // PDF actions
+                if (_pdfBusy)
+                  const SizedBox(
+                    width: 20, height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else ...[
+                  _actionIcon(Icons.picture_as_pdf, 'Telecharger', isDark,
+                      _tickets.isNotEmpty ? _downloadPdf : null),
+                  const SizedBox(width: 6),
+                  _actionIcon(Icons.share, 'Partager', isDark,
+                      _tickets.isNotEmpty ? _sharePdf : null),
+                  const SizedBox(width: 6),
+                ],
                 // Copy all button
-                GestureDetector(
-                  onTap: _tickets.isNotEmpty ? _copyAllTickets : null,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(Icons.copy_all,
-                        size: 20,
-                        color: _tickets.isNotEmpty
-                            ? (isDark ? Colors.white70 : Colors.grey.shade600)
-                            : Colors.grey.shade300),
-                  ),
-                ),
+                _actionIcon(Icons.copy_all, 'Copier', isDark,
+                    _tickets.isNotEmpty ? _copyAllTickets : null),
               ],
             ),
           ),
