@@ -188,8 +188,8 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
             // Body content
             Expanded(
               child: _loading
-                  ? Center(
-                      child: const CircularProgressIndicator(
+                  ? const Center(
+                      child: CircularProgressIndicator(
                         color: AppTheme.accent,
                         strokeWidth: 3,
                       ),

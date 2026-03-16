@@ -324,7 +324,7 @@ class _MikhmonReportScreenState extends State<MikhmonReportScreen> {
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border(left: BorderSide(color: AppTheme.accent, width: 3)),
+        border: const Border(left: BorderSide(color: AppTheme.accent, width: 3)),
         boxShadow: isDark ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Column(
@@ -435,7 +435,7 @@ class _MikhmonReportScreenState extends State<MikhmonReportScreen> {
                     Text('$date${time.isNotEmpty ? ' $time' : ''}', style: TextStyle(fontSize: 11, color: textSecondary)),
                     if (pointName != null) ...[
                       Text(' · ', style: TextStyle(fontSize: 11, color: textSecondary)),
-                      Flexible(child: Text(pointName.toString(), style: TextStyle(fontSize: 11, color: AppTheme.accent), overflow: TextOverflow.ellipsis)),
+                      Flexible(child: Text(pointName.toString(), style: const TextStyle(fontSize: 11, color: AppTheme.accent), overflow: TextOverflow.ellipsis)),
                     ],
                   ],
                 ),

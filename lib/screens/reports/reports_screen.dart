@@ -414,8 +414,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                       borderRadius: BorderRadius.circular(16),
                                       onTap: hasPoints ? () {
                                         setState(() {
-                                          if (isExpanded) _expandedSites.remove(siteId);
-                                          else _expandedSites.add(siteId);
+                                          if (isExpanded) {
+                                            _expandedSites.remove(siteId);
+                                          } else {
+                                            _expandedSites.add(siteId);
+                                          }
                                         });
                                       } : null,
                                       child: Padding(
@@ -470,12 +473,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                         padding: const EdgeInsets.symmetric(horizontal: 16),
                                         child: Divider(height: 1, color: div),
                                       ),
-                                      Padding(
-                                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+                                      const Padding(
+                                        padding: EdgeInsets.fromLTRB(16, 10, 16, 6),
                                         child: Row(
                                           children: [
-                                            const Icon(Icons.store, size: 14, color: AppTheme.primary),
-                                            const SizedBox(width: 6),
+                                            Icon(Icons.store, size: 14, color: AppTheme.primary),
+                                            SizedBox(width: 6),
                                             Text('Points de vente', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary)),
                                           ],
                                         ),

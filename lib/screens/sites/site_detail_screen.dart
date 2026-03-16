@@ -131,7 +131,11 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
 
     final isMikhmon = action == 'mikhmon';
     setState(() {
-      if (isMikhmon) _loadingMikhmon = true; else _loadingWinbox = true;
+      if (isMikhmon) {
+        _loadingMikhmon = true;
+      } else {
+        _loadingWinbox = true;
+      }
     });
 
     try {
@@ -172,7 +176,11 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
         }
       } else {
         setState(() {
-          if (isMikhmon) _loadingMikhmon = false; else _loadingWinbox = false;
+          if (isMikhmon) {
+            _loadingMikhmon = false;
+          } else {
+            _loadingWinbox = false;
+          }
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(result['error'] ?? 'Erreur'), backgroundColor: AppTheme.danger),
@@ -181,7 +189,11 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          if (isMikhmon) _loadingMikhmon = false; else _loadingWinbox = false;
+          if (isMikhmon) {
+            _loadingMikhmon = false;
+          } else {
+            _loadingWinbox = false;
+          }
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
@@ -492,7 +504,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                                   // Tunnel header
                                   Row(
                                     children: [
-                                      Icon(Icons.vpn_lock, size: 18, color: AppTheme.primary),
+                                      const Icon(Icons.vpn_lock, size: 18, color: AppTheme.primary),
                                       const SizedBox(width: 8),
                                       Expanded(child: Text(_siteTunnel!['tunnel_label'] ?? _siteTunnel!['tunnel_name'] ?? '', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor))),
                                       Container(
@@ -611,11 +623,11 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                                                 child: Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                                   decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                                                  child: Row(
+                                                  child: const Row(
                                                     mainAxisSize: MainAxisSize.min,
                                                     children: [
                                                       Icon(Icons.copy, size: 12, color: AppTheme.primary),
-                                                      const SizedBox(width: 4),
+                                                      SizedBox(width: 4),
                                                       Text('Copier', style: TextStyle(fontSize: 11, color: AppTheme.primary, fontWeight: FontWeight.w600)),
                                                     ],
                                                   ),

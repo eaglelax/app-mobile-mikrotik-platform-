@@ -107,7 +107,11 @@ class _TunnelDetailScreenState extends State<TunnelDetailScreen> {
 
     final isMikhmon = action == 'mikhmon';
     setState(() {
-      if (isMikhmon) _loadingMikhmon = true; else _loadingWinbox = true;
+      if (isMikhmon) {
+        _loadingMikhmon = true;
+      } else {
+        _loadingWinbox = true;
+      }
     });
 
     try {
@@ -148,7 +152,11 @@ class _TunnelDetailScreenState extends State<TunnelDetailScreen> {
         }
       } else {
         setState(() {
-          if (isMikhmon) _loadingMikhmon = false; else _loadingWinbox = false;
+          if (isMikhmon) {
+            _loadingMikhmon = false;
+          } else {
+            _loadingWinbox = false;
+          }
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(result['error'] ?? 'Erreur'), backgroundColor: AppTheme.danger),
@@ -157,7 +165,11 @@ class _TunnelDetailScreenState extends State<TunnelDetailScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          if (isMikhmon) _loadingMikhmon = false; else _loadingWinbox = false;
+          if (isMikhmon) {
+            _loadingMikhmon = false;
+          } else {
+            _loadingWinbox = false;
+          }
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
@@ -338,7 +350,7 @@ class _TunnelDetailScreenState extends State<TunnelDetailScreen> {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.terminal, size: 20, color: AppTheme.primary),
+                                const Icon(Icons.terminal, size: 20, color: AppTheme.primary),
                                 const SizedBox(width: 8),
                                 Text('Commande API', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textColor)),
                               ],
@@ -540,11 +552,11 @@ class _TunnelDetailScreenState extends State<TunnelDetailScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                child: Row(
+                child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.copy, size: 14, color: AppTheme.primary),
-                    const SizedBox(width: 4),
+                    SizedBox(width: 4),
                     Text('Copier', style: TextStyle(fontSize: 12, color: AppTheme.primary, fontWeight: FontWeight.w600)),
                   ],
                 ),

@@ -59,9 +59,9 @@ class MoreScreen extends StatelessWidget {
                     // Avatar with gradient ring
                     Container(
                       padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: const LinearGradient(
+                        gradient: LinearGradient(
                           colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
                         ),
                       ),

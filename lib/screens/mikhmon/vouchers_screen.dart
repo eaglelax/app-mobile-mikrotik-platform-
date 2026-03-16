@@ -306,13 +306,13 @@ class _VouchersScreenState extends State<VouchersScreen> {
                           if (isTimeout) {
                             Navigator.pop(ctx);
                             if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                                 backgroundColor: Colors.orange,
-                                duration: const Duration(seconds: 6),
+                                duration: Duration(seconds: 6),
                                 content: Row(children: [
-                                  const Icon(Icons.cloud_sync, color: Colors.white, size: 20),
-                                  const SizedBox(width: 10),
-                                  const Expanded(child: Text('Génération en cours en arrière-plan. Les tickets seront disponibles dans quelques instants.', style: TextStyle(color: Colors.white))),
+                                  Icon(Icons.cloud_sync, color: Colors.white, size: 20),
+                                  SizedBox(width: 10),
+                                  Expanded(child: Text('Génération en cours en arrière-plan. Les tickets seront disponibles dans quelques instants.', style: TextStyle(color: Colors.white))),
                                 ]),
                               ));
                               _load();

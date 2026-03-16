@@ -27,7 +27,7 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
 
   List<Map<String, dynamic>> _profiles = [];
   List<Point> _points = [];
-  Set<String> _selectedProfiles = {};
+  final Set<String> _selectedProfiles = {};
   Point? _selectedPoint;
   bool _loadingProfiles = true;
   bool _generating = false;

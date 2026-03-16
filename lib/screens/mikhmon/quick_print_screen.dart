@@ -20,7 +20,7 @@ class _QuickPrintScreenState extends State<QuickPrintScreen> {
   final _qtyController = TextEditingController(text: '10');
 
   List<Map<String, dynamic>> _profiles = [];
-  Set<String> _selectedProfiles = {};
+  final Set<String> _selectedProfiles = {};
   int _quantity = 10;
   bool _loading = true;
   bool _generating = false;

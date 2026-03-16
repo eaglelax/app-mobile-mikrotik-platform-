@@ -421,7 +421,7 @@ class _PointFormScreenState extends State<PointFormScreen> {
                                 if (mounted) setState(() => _loadingServers = false);
                               }
                             },
-                            child: Icon(Icons.sync, size: 18, color: AppTheme.primary),
+                            child: const Icon(Icons.sync, size: 18, color: AppTheme.primary),
                           ),
                         ]),
                       )
