@@ -33,8 +33,8 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
   bool _loadingProfiles = true;
   bool _generating = false;
 
-  // Result after generation
-  List<Map<String, dynamic>>? _generatedTickets;
+  // Result after generation — grouped by profile
+  Map<String, List<Map<String, dynamic>>>? _ticketsByProfile;
   int _synced = 0;
 
   @override
@@ -106,26 +106,29 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
       final results = await Future.wait(futures);
 
       if (mounted) {
-        final allTickets = <Map<String, dynamic>>[];
+        final grouped = <String, List<Map<String, dynamic>>>{};
+        int totalCount = 0;
         int totalSynced = 0;
-        for (final result in results) {
+        for (int i = 0; i < results.length; i++) {
+          final result = results[i];
+          final profileName = _selectedProfiles.elementAt(i);
           final tickets = (result['tickets'] as List? ?? [])
               .cast<Map<String, dynamic>>();
-          allTickets.addAll(tickets);
+          grouped[profileName] = tickets;
+          totalCount += tickets.length;
           totalSynced += (result['synced'] as num?)?.toInt() ?? 0;
         }
         setState(() {
-          _generatedTickets = allTickets;
+          _ticketsByProfile = grouped;
           _synced = totalSynced;
           _generating = false;
         });
-        // Show top notification + success dialog
         TopNotification.show(
           context,
           title: 'Génération terminée',
-          message: '${allTickets.length} ticket(s) générés — $totalSynced synchronisés',
+          message: '$totalCount ticket(s) générés — $totalSynced synchronisés',
         );
-        _showSuccessDialog(allTickets.length, totalSynced);
+        _showSuccessDialog(totalCount, totalSynced);
       }
     } catch (e) {
       if (mounted) {
@@ -242,114 +245,114 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
     );
   }
 
-  Future<File> _generatePdf() async {
-    final tickets = _generatedTickets!;
+  /// Generate PDF for a single profile
+  Future<File> _generatePdf(String profileName) async {
+    final data = _ticketsByProfile!;
     final pdf = pw.Document();
     final siteName = widget.site.nom;
-    final profileNames = tickets.map((t) => t['profile'] ?? '').toSet().join(', ');
 
-    const ticketsPerRow = 3;
-    const ticketsPerPage = 15; // 3 cols x 5 rows
+    final profilesToPrint = {profileName: data[profileName] ?? []};
 
-    for (var pageStart = 0;
-        pageStart < tickets.length;
-        pageStart += ticketsPerPage) {
-      final pageEnd = (pageStart + ticketsPerPage > tickets.length)
-          ? tickets.length
-          : pageStart + ticketsPerPage;
-      final pageTickets = tickets.sublist(pageStart, pageEnd);
+    for (final entry in profilesToPrint.entries) {
+      final profileName = entry.key;
+      final tickets = entry.value;
+      if (tickets.isEmpty) continue;
 
-      pdf.addPage(pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(20),
-        build: (context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(siteName,
-                      style: pw.TextStyle(
-                          fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                  pw.Text('Profils: $profileNames',
-                      style: const pw.TextStyle(fontSize: 11)),
-                ],
-              ),
-              pw.SizedBox(height: 10),
-              pw.Divider(),
-              pw.SizedBox(height: 10),
-              pw.Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: pageTickets.map((t) {
-                  final tProfile = t['profile'] ?? '';
-                  final tPrice = t['price'];
-                  return pw.Container(
-                    width: (PdfPageFormat.a4.width - 40 - 16) / ticketsPerRow,
-                    padding: const pw.EdgeInsets.all(8),
-                    decoration: pw.BoxDecoration(
-                      border: pw.Border.all(width: 0.5),
-                      borderRadius: pw.BorderRadius.circular(4),
-                    ),
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.center,
-                      children: [
-                        pw.Text(siteName,
-                            style: pw.TextStyle(
-                                fontSize: 7, fontWeight: pw.FontWeight.bold)),
-                        pw.SizedBox(height: 2),
-                        pw.Text(tProfile,
-                            style: const pw.TextStyle(fontSize: 6)),
-                        pw.SizedBox(height: 4),
-                        pw.Container(
-                          padding: const pw.EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 3),
-                          decoration: pw.BoxDecoration(
-                            color: PdfColors.grey100,
-                            borderRadius: pw.BorderRadius.circular(3),
-                          ),
-                          child: pw.Text(t['code'] ?? '',
-                              style: pw.TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: pw.FontWeight.bold,
-                                  letterSpacing: 1)),
-                        ),
-                        pw.SizedBox(height: 2),
-                        pw.Text('Mot de passe: ${t['password'] ?? t['code']}',
-                            style: const pw.TextStyle(fontSize: 6)),
-                        if (tPrice != null) ...[
+      const ticketsPerRow = 3;
+      const ticketsPerPage = 15;
+
+      for (var pageStart = 0; pageStart < tickets.length; pageStart += ticketsPerPage) {
+        final pageEnd = (pageStart + ticketsPerPage > tickets.length)
+            ? tickets.length
+            : pageStart + ticketsPerPage;
+        final pageTickets = tickets.sublist(pageStart, pageEnd);
+
+        pdf.addPage(pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(20),
+          build: (context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(siteName,
+                        style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                    pw.Text('Profil: $profileName',
+                        style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+                  ],
+                ),
+                pw.SizedBox(height: 4),
+                pw.Text('${tickets.length} ticket(s) — Page ${(pageStart ~/ ticketsPerPage) + 1}/${(tickets.length / ticketsPerPage).ceil()}',
+                    style: const pw.TextStyle(fontSize: 9)),
+                pw.SizedBox(height: 8),
+                pw.Divider(),
+                pw.SizedBox(height: 8),
+                pw.Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: pageTickets.map((t) {
+                    final tPrice = t['price'];
+                    return pw.Container(
+                      width: (PdfPageFormat.a4.width - 40 - 16) / ticketsPerRow,
+                      padding: const pw.EdgeInsets.all(8),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(width: 0.5),
+                        borderRadius: pw.BorderRadius.circular(4),
+                      ),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.center,
+                        children: [
+                          pw.Text(siteName,
+                              style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
                           pw.SizedBox(height: 2),
-                          pw.Text('$tPrice FCFA',
-                              style: pw.TextStyle(
-                                  fontSize: 8,
-                                  fontWeight: pw.FontWeight.bold)),
+                          pw.Text(profileName, style: const pw.TextStyle(fontSize: 6)),
+                          pw.SizedBox(height: 4),
+                          pw.Container(
+                            padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: pw.BoxDecoration(
+                              color: PdfColors.grey100,
+                              borderRadius: pw.BorderRadius.circular(3),
+                            ),
+                            child: pw.Text(t['code'] ?? '',
+                                style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, letterSpacing: 1)),
+                          ),
+                          pw.SizedBox(height: 2),
+                          pw.Text('Mot de passe: ${t['password'] ?? t['code']}',
+                              style: const pw.TextStyle(fontSize: 6)),
+                          if (tPrice != null) ...[
+                            pw.SizedBox(height: 2),
+                            pw.Text('$tPrice FCFA',
+                                style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                          ],
                         ],
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          );
-        },
-      ));
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            );
+          },
+        ));
+      }
     }
 
+    final suffix = profileName.replaceAll(' ', '_');
     final dir = await getTemporaryDirectory();
     final file = File(
-        '${dir.path}/tickets_${siteName.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.pdf');
+        '${dir.path}/tickets_${siteName.replaceAll(' ', '_')}_${suffix}_${DateTime.now().millisecondsSinceEpoch}.pdf');
     await file.writeAsBytes(await pdf.save());
     return file;
   }
 
-  Future<void> _sharePdf() async {
+  Future<void> _sharePdf(String profileName) async {
     try {
-      final file = await _generatePdf();
+      final file = await _generatePdf(profileName);
+      final totalCount = _ticketsByProfile![profileName]?.length ?? 0;
       await Share.shareXFiles(
         [XFile(file.path)],
-        text:
-            'Tickets ${widget.site.nom} - ${_generatedTickets!.length} tickets',
+        text: 'Tickets ${widget.site.nom} - $totalCount tickets ($profileName)',
       );
     } catch (e) {
       if (mounted) {
@@ -412,7 +415,7 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_generatedTickets != null) return _buildResultScreen();
+    if (_ticketsByProfile != null) return _buildResultScreen();
     return _buildFormScreen();
   }
 
@@ -758,10 +761,9 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
   }
 
   Widget _buildResultScreen() {
-    final tickets = _generatedTickets!;
-    // Group profiles for display
-    final profileNames = tickets.map((t) => t['profile'] ?? '').toSet();
-    final profileLabel = profileNames.join(', ');
+    final data = _ticketsByProfile!;
+    final totalCount = data.values.fold<int>(0, (s, l) => s + l.length);
+    final profileEntries = data.entries.where((e) => e.value.isNotEmpty).toList();
 
     return Scaffold(
       backgroundColor: _bg,
@@ -780,22 +782,17 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppTheme.success
-                      .withValues(alpha: _isDark ? 0.15 : 0.1),
+                  color: AppTheme.success.withValues(alpha: _isDark ? 0.15 : 0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle,
-                        color: AppTheme.success),
+                    const Icon(Icons.check_circle, color: AppTheme.success),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        '${tickets.length} ticket(s) générés, $_synced synchronisés',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: _textPrimary,
-                        ),
+                        '$totalCount ticket(s) générés en ${profileEntries.length} lot(s)',
+                        style: TextStyle(fontWeight: FontWeight.w600, color: _textPrimary),
                       ),
                     ),
                   ],
@@ -803,135 +800,119 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
               ),
             ),
 
-            if (profileLabel.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 10),
-                child: Text('Profils: $profileLabel',
-                    style: TextStyle(
-                        color: _textSecondary, fontSize: 13)),
-              ),
+            // Pas de PDF global — chaque profil a son propre PDF
 
-            // Action buttons
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 20, vertical: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 48,
-                      child: OutlinedButton.icon(
-                        onPressed: _sharePdf,
-                        icon: const Icon(Icons.share, size: 20),
-                        label: const Text('Partager PDF'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.primary,
-                          side: BorderSide(
-                            color: AppTheme.primary
-                                .withValues(alpha: 0.4),
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 48,
-                      child: ElevatedButton.icon(
-                        onPressed: () async {
-                          try {
-                            final file = await _generatePdf();
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                      'PDF sauvegardé: ${file.path.split('/').last}'),
-                                  backgroundColor: AppTheme.success,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Erreur: $e')),
-                              );
-                            }
-                          }
-                        },
-                        icon: const Icon(Icons.picture_as_pdf,
-                            size: 20, color: Colors.white),
-                        label: const Text(
-                          'Télécharger',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 0,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            const SizedBox(height: 8),
 
-            const SizedBox(height: 4),
-
-            // Ticket list
+            // Profile lots
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                itemCount: tickets.length,
-                itemBuilder: (ctx, i) {
-                  final t = tickets[i];
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    decoration: _containerDecoration,
-                    child: ListTile(
-                      dense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 4),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      leading: CircleAvatar(
-                        radius: 16,
-                        backgroundColor: AppTheme.primary
-                            .withValues(alpha: _isDark ? 0.25 : 0.12),
-                        child: Text('${i + 1}',
-                            style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primary)),
-                      ),
-                      title: Text(t['code'] ?? '',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                              letterSpacing: 1.5,
-                              color: _textPrimary)),
-                      subtitle: Text(
-                          '${t['profile'] ?? ''} · MDP: ${t['password'] ?? t['code']}',
-                          style: TextStyle(
-                              fontSize: 12, color: _textSecondary)),
-                    ),
-                  );
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                itemCount: profileEntries.length,
+                itemBuilder: (ctx, profileIndex) {
+                  final profileName = profileEntries[profileIndex].key;
+                  final tickets = profileEntries[profileIndex].value;
+                  return _buildProfileSection(profileName, tickets, profileIndex);
                 },
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildProfileSection(String profileName, List<Map<String, dynamic>> tickets, int colorIndex) {
+    final colors = [AppTheme.primary, Colors.teal, Colors.deepPurple, Colors.orange, Colors.pink];
+    final color = colors[colorIndex % colors.length];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Profile header
+        Container(
+          margin: const EdgeInsets.only(bottom: 8, top: 8),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: _isDark ? 0.15 : 0.08),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: color.withValues(alpha: 0.2),
+                child: Icon(Icons.confirmation_number, color: color, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(profileName,
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _textPrimary)),
+                    Text('${tickets.length} ticket(s)',
+                        style: TextStyle(fontSize: 12, color: _textSecondary)),
+                  ],
+                ),
+              ),
+              // PDF button per profile
+              IconButton(
+                icon: Icon(Icons.picture_as_pdf, color: color, size: 22),
+                tooltip: 'PDF $profileName',
+                onPressed: () async {
+                  try {
+                    final file = await _generatePdf(profileName);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('PDF $profileName sauvegardé'), backgroundColor: AppTheme.success),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+                    }
+                  }
+                },
+              ),
+              IconButton(
+                icon: Icon(Icons.share, color: color, size: 20),
+                tooltip: 'Partager $profileName',
+                onPressed: () => _sharePdf(profileName),
+              ),
+            ],
+          ),
+        ),
+
+        // Ticket cards for this profile
+        ...tickets.asMap().entries.map((entry) {
+          final i = entry.key;
+          final t = entry.value;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            decoration: _containerDecoration,
+            child: ListTile(
+              dense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              leading: CircleAvatar(
+                radius: 16,
+                backgroundColor: color.withValues(alpha: _isDark ? 0.25 : 0.12),
+                child: Text('${i + 1}',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
+              ),
+              title: Text(t['code'] ?? '',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, letterSpacing: 1.5, color: _textPrimary)),
+              subtitle: Text(
+                  'MDP: ${t['password'] ?? t['code']}${t['price'] != null ? ' · ${t['price']} FCFA' : ''}',
+                  style: TextStyle(fontSize: 12, color: _textSecondary)),
+            ),
+          );
+        }),
+
+        const SizedBox(height: 8),
+      ],
     );
   }
 }
