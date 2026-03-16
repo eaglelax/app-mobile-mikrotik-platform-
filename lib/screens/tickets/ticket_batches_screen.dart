@@ -1,6 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../models/site.dart';
@@ -983,7 +988,15 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
               ),
             ),
 
-            const SizedBox(width: 8),
+            // PDF download button
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf, size: 20),
+              color: AppTheme.primary,
+              tooltip: 'Télécharger PDF',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              onPressed: () => _downloadBatchPdf(b),
+            ),
 
             // Status badge
             Container(
@@ -1004,6 +1017,134 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
       ),
       ),
     );
+  }
+
+  Future<void> _downloadBatchPdf(Map<String, dynamic> batch) async {
+    final batchId = batch['batch_id']?.toString();
+    if (batchId == null || _site == null) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(children: [
+          SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+          SizedBox(width: 10),
+          Text('Chargement des tickets...'),
+        ]),
+        backgroundColor: AppTheme.primary,
+        duration: Duration(seconds: 10),
+      ),
+    );
+
+    try {
+      final result = await _service.fetchBatchDetail(_site!.id, batchId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
+
+      final tickets = (result['tickets'] as List? ?? []).cast<Map<String, dynamic>>();
+      if (tickets.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Aucun ticket dans ce lot'), backgroundColor: AppTheme.warning),
+        );
+        return;
+      }
+
+      final profileName = batch['profile_name'] ?? batch['profile'] ?? 'lot';
+      final siteName = _site!.nom;
+      final file = await _generateBatchPdf(tickets, siteName, profileName);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Tickets $siteName - ${tickets.length} tickets ($profileName)',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
+      );
+    }
+  }
+
+  Future<File> _generateBatchPdf(List<Map<String, dynamic>> tickets, String siteName, String profileName) async {
+    final pdf = pw.Document();
+    const ticketsPerRow = 3;
+    const ticketsPerPage = 15;
+
+    for (var pageStart = 0; pageStart < tickets.length; pageStart += ticketsPerPage) {
+      final pageEnd = (pageStart + ticketsPerPage > tickets.length) ? tickets.length : pageStart + ticketsPerPage;
+      final pageTickets = tickets.sublist(pageStart, pageEnd);
+
+      pdf.addPage(pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(20),
+        build: (context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(siteName, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                  pw.Text('Profil: $profileName', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+                ],
+              ),
+              pw.SizedBox(height: 4),
+              pw.Text('${tickets.length} ticket(s) — Page ${(pageStart ~/ ticketsPerPage) + 1}/${(tickets.length / ticketsPerPage).ceil()}',
+                  style: const pw.TextStyle(fontSize: 9)),
+              pw.SizedBox(height: 8),
+              pw.Divider(),
+              pw.SizedBox(height: 8),
+              pw.Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: pageTickets.map((t) {
+                  final code = t['code'] ?? '';
+                  final password = t['password'] ?? code;
+                  final price = t['ticket_price'] ?? t['price'];
+                  return pw.Container(
+                    width: (PdfPageFormat.a4.width - 40 - 16) / ticketsPerRow,
+                    padding: const pw.EdgeInsets.all(8),
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(width: 0.5),
+                      borderRadius: pw.BorderRadius.circular(4),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text(siteName, style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
+                        pw.SizedBox(height: 2),
+                        pw.Text(profileName, style: const pw.TextStyle(fontSize: 6)),
+                        pw.SizedBox(height: 4),
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.grey100,
+                            borderRadius: pw.BorderRadius.circular(3),
+                          ),
+                          child: pw.Text(code,
+                              style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, letterSpacing: 1)),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text('Mot de passe: $password', style: const pw.TextStyle(fontSize: 6)),
+                        if (price != null) ...[
+                          pw.SizedBox(height: 2),
+                          pw.Text('$price FCFA', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                        ],
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          );
+        },
+      ));
+    }
+
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/lot_${profileName.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.pdf');
+    await file.writeAsBytes(await pdf.save());
+    return file;
   }
 
   // ── Batch Detail Bottom Sheet ──────────────────────────────────
