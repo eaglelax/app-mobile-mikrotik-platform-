@@ -99,9 +99,9 @@ class _PinSetupGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PinScreen(
+    return const PinScreen(
       isSetup: true,
-      key: const ValueKey('pin-setup'),
+      key: ValueKey('pin-setup'),
     );
   }
 }
@@ -112,9 +112,9 @@ class _PinEntryGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PinScreen(
+    return const PinScreen(
       isSetup: false,
-      key: const ValueKey('pin-entry'),
+      key: ValueKey('pin-entry'),
     );
   }
 }
