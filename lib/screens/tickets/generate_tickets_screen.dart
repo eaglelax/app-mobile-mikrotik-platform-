@@ -10,6 +10,7 @@ import '../../models/point.dart';
 import '../../services/mikhmon_service.dart';
 import '../../services/ticket_service.dart';
 import '../../services/point_service_api.dart';
+import '../../widgets/top_notification.dart';
 
 class GenerateTicketsScreen extends StatefulWidget {
   final Site site;
@@ -118,6 +119,13 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
           _synced = totalSynced;
           _generating = false;
         });
+        // Show top notification + success dialog
+        TopNotification.show(
+          context,
+          title: 'Génération terminée',
+          message: '${allTickets.length} ticket(s) générés — $totalSynced synchronisés',
+        );
+        _showSuccessDialog(allTickets.length, totalSynced);
       }
     } catch (e) {
       if (mounted) {
@@ -150,6 +158,88 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
         setState(() => _generating = false);
       }
     }
+  }
+
+  void _showSuccessDialog(int count, int synced) {
+    final profileLabel = _selectedProfiles.join(', ');
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: _isDark ? AppTheme.darkCard : Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64, height: 64,
+                decoration: BoxDecoration(
+                  color: AppTheme.success.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_circle, color: AppTheme.success, size: 36),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Génération terminée',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _textPrimary),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  children: [
+                    _dialogInfoRow(Icons.confirmation_number, '$count ticket(s) générés'),
+                    const SizedBox(height: 10),
+                    _dialogInfoRow(Icons.sync, '$synced synchronisés au routeur'),
+                    const SizedBox(height: 10),
+                    _dialogInfoRow(Icons.router, widget.site.nom),
+                    const SizedBox(height: 10),
+                    _dialogInfoRow(Icons.person, profileLabel),
+                    if (_selectedPoint != null) ...[
+                      const SizedBox(height: 10),
+                      _dialogInfoRow(Icons.store, _selectedPoint!.name),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  child: const Text('OK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _dialogInfoRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppTheme.primary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(text, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: _textPrimary)),
+        ),
+      ],
+    );
   }
 
   Future<File> _generatePdf() async {
