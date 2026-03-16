@@ -234,11 +234,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           color: AppTheme.danger.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Row(
+                        child: const Row(
                           children: [
-                            const Icon(Icons.cloud_off_rounded, color: AppTheme.danger, size: 18),
-                            const SizedBox(width: 10),
-                            const Expanded(
+                            Icon(Icons.cloud_off_rounded, color: AppTheme.danger, size: 18),
+                            SizedBox(width: 10),
+                            Expanded(
                               child: Text(
                                 'Glissez vers le bas pour actualiser',
                                 style: TextStyle(fontSize: 13, color: AppTheme.danger),
@@ -308,7 +308,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ),
                                       const SizedBox(width: 3),
                                       Text(
-                                        '${todayChange}%',
+                                        '$todayChange%',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 11,
