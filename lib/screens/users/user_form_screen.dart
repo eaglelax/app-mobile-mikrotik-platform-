@@ -103,6 +103,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
             });
           } catch (_) {}
         }
+        if (!mounted) return;
         Navigator.pop(context, true);
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

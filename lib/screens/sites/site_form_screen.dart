@@ -106,6 +106,7 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
               await _tunnelService.associate(_selectedTunnelId!, int.parse(siteId.toString()));
             } catch (_) {}
           }
+          if (!mounted) return;
           context.read<SiteProvider>().fetchSites();
           Navigator.pop(context, true);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -329,7 +330,7 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
                             Text('Aucun tunnel disponible', style: TextStyle(fontSize: 13, color: isDark ? Colors.grey[400] : Colors.grey[600]))
                           else
                             DropdownButtonFormField<int>(
-                              value: _selectedTunnelId,
+                              initialValue: _selectedTunnelId,
                               decoration: _inputDecoration('Associer un tunnel', isDark: isDark),
                               dropdownColor: isDark ? AppTheme.darkCard : Colors.white,
                               style: TextStyle(color: textColor, fontSize: 16),

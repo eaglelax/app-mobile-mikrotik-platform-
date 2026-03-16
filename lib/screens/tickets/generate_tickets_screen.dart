@@ -34,8 +34,6 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
 
   // Result after generation — grouped by profile
   Map<String, List<Map<String, dynamic>>>? _ticketsByProfile;
-  int _synced = 0;
-
   @override
   void initState() {
     super.initState();
@@ -119,7 +117,6 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
         }
         setState(() {
           _ticketsByProfile = grouped;
-          _synced = totalSynced;
           _generating = false;
         });
         TopNotification.show(
@@ -433,7 +430,7 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                                     if (_selectedProfiles.isNotEmpty)
                                       GestureDetector(
                                         onTap: () => setState(() => _selectedProfiles.clear()),
-                                        child: Text('Tout décocher', style: TextStyle(fontSize: 12, color: AppTheme.primary)),
+                                        child: const Text('Tout décocher', style: TextStyle(fontSize: 12, color: AppTheme.primary)),
                                       ),
                                   ],
                                 ),
@@ -509,7 +506,7 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                                   const SizedBox(height: 8),
                                   Text(
                                     '${_selectedProfiles.length} profil(s) sélectionné(s)',
-                                    style: TextStyle(fontSize: 12, color: AppTheme.primary, fontWeight: FontWeight.w600),
+                                    style: const TextStyle(fontSize: 12, color: AppTheme.primary, fontWeight: FontWeight.w600),
                                   ),
                                 ],
 
@@ -769,7 +766,7 @@ class _GenerateTicketsScreenState extends State<GenerateTicketsScreen> {
                 tooltip: 'PDF $profileName',
                 onPressed: () async {
                   try {
-                    final file = await _generatePdf(profileName);
+                    await _generatePdf(profileName);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('PDF $profileName sauvegardé'), backgroundColor: AppTheme.success),

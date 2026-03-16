@@ -363,8 +363,8 @@ class _HotspotUserAddScreenState extends State<HotspotUserAddScreen> {
                                   boxShadow: [
                                     BoxShadow(
                                       color: isDark
-                                          ? Colors.black.withOpacity(0.2)
-                                          : Colors.grey.withOpacity(0.08),
+                                          ? Colors.black.withValues(alpha: 0.2)
+                                          : Colors.grey.withValues(alpha: 0.08),
                                       blurRadius: 12,
                                       offset: const Offset(0, 4),
                                     ),
@@ -401,8 +401,8 @@ class _HotspotUserAddScreenState extends State<HotspotUserAddScreen> {
                                   boxShadow: [
                                     BoxShadow(
                                       color: isDark
-                                          ? Colors.black.withOpacity(0.2)
-                                          : Colors.grey.withOpacity(0.08),
+                                          ? Colors.black.withValues(alpha: 0.2)
+                                          : Colors.grey.withValues(alpha: 0.08),
                                       blurRadius: 12,
                                       offset: const Offset(0, 4),
                                     ),

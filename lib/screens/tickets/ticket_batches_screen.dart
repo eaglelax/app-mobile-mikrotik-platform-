@@ -38,7 +38,6 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
   // Generation state
   List<Map<String, dynamic>> _profiles = [];
   List<Point> _points = [];
-  List<Map<String, dynamic>> _servers = [];
   bool _loadingProfiles = false;
 
   // PDF state for batch list actions
@@ -105,10 +104,7 @@ class _TicketBatchesScreenState extends State<TicketBatchesScreen> {
         _profiles = (profileData['profiles'] as List? ?? []).cast<Map<String, dynamic>>();
       }
       _points = results[1] as List<Point>;
-      final serverData = results[2] as Map<String, dynamic>;
-      if (serverData['success'] == true) {
-        _servers = (serverData['servers'] as List? ?? []).cast<Map<String, dynamic>>();
-      }
+      // Server data loaded for future use
     } catch (_) {}
     if (mounted) setState(() => _loadingProfiles = false);
   }
