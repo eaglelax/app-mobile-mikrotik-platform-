@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
@@ -17,10 +18,56 @@ class PinScreen extends StatefulWidget {
 }
 
 class _PinScreenState extends State<PinScreen> {
+  final _localAuth = LocalAuthentication();
   String _pin = '';
   String? _firstPin; // for setup confirmation
   String? _error;
   bool _confirming = false;
+  bool _biometricAvailable = false;
+  bool _biometricAttempted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.isSetup) {
+      _checkBiometricAndAuthenticate();
+    }
+  }
+
+  /// Check if device has lock screen configured and auto-trigger it
+  Future<void> _checkBiometricAndAuthenticate() async {
+    try {
+      final isSupported = await _localAuth.isDeviceSupported();
+      final canCheck = await _localAuth.canCheckBiometrics;
+      if (mounted) {
+        setState(() => _biometricAvailable = isSupported || canCheck);
+      }
+      if (_biometricAvailable && !_biometricAttempted) {
+        _biometricAttempted = true;
+        _authenticateWithBiometric();
+      }
+    } catch (_) {
+      // Device doesn't support biometric — fallback to PIN
+    }
+  }
+
+  /// Trigger native device authentication (fingerprint, face, pattern, or PIN)
+  Future<void> _authenticateWithBiometric() async {
+    try {
+      final didAuthenticate = await _localAuth.authenticate(
+        localizedReason: 'Déverrouillez pour accéder à Microtick',
+        options: const AuthenticationOptions(
+          stickyAuth: true,
+          biometricOnly: false, // allows PIN/pattern/password fallback
+        ),
+      );
+      if (didAuthenticate && mounted) {
+        context.read<AuthProvider>().onPinVerified();
+      }
+    } on PlatformException catch (_) {
+      // Authentication failed or cancelled — user can use PIN
+    }
+  }
 
   void _addDigit(String digit) {
     if (_pin.length >= 4) return;
@@ -109,7 +156,9 @@ class _PinScreenState extends State<PinScreen> {
     } else {
       final userName = context.read<AuthProvider>().user?.name ?? '';
       title = 'Bonjour${userName.isNotEmpty ? ', $userName' : ''}';
-      subtitle = 'Entrez votre code PIN';
+      subtitle = _biometricAvailable
+          ? 'Utilisez votre empreinte ou entrez le PIN'
+          : 'Entrez votre code PIN';
     }
 
     return Scaffold(
@@ -123,7 +172,13 @@ class _PinScreenState extends State<PinScreen> {
                 color: AppTheme.primary.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Icon(Icons.lock, size: 40, color: AppTheme.primary),
+              child: Icon(
+                _biometricAvailable && !widget.isSetup
+                    ? Icons.fingerprint
+                    : Icons.lock,
+                size: 40,
+                color: AppTheme.primary,
+              ),
             ),
             const SizedBox(height: 20),
             Text(title,
@@ -165,13 +220,27 @@ class _PinScreenState extends State<PinScreen> {
             // Numpad
             _buildNumpad(),
             const SizedBox(height: 16),
-            // Logout / change account option (only on PIN entry, not setup)
-            if (!widget.isSetup)
+            // Bottom actions
+            if (!widget.isSetup) ...[
+              // Biometric button if available
+              if (_biometricAvailable)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: TextButton.icon(
+                    onPressed: _authenticateWithBiometric,
+                    icon: const Icon(Icons.fingerprint, size: 20),
+                    label: const Text('Utiliser la biométrie'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.primary,
+                    ),
+                  ),
+                ),
               TextButton(
                 onPressed: _logout,
                 child: const Text('Changer de compte',
                     style: TextStyle(color: Colors.grey)),
               ),
+            ],
             const SizedBox(height: 20),
           ],
         ),

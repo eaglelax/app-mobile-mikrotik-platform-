@@ -55,39 +55,65 @@ class _SalesScreenState extends State<SalesScreen> {
     });
   }
 
+  String _fmtDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  Map<String, String> _computeDateRange() {
+    final now = DateTime.now();
+    switch (_period) {
+      case 'week':
+        return {
+          'period': 'week',
+          'date_from': _fmtDate(now.subtract(const Duration(days: 7))),
+          'date_to': _fmtDate(now),
+        };
+      case 'month':
+        return {
+          'period': 'month',
+          'date_from': '${now.year}-${now.month.toString().padLeft(2, '0')}-01',
+          'date_to': _fmtDate(now),
+        };
+      case 'all':
+        return {
+          'period': 'custom',
+          'date_from': '2020-01-01',
+          'date_to': _fmtDate(now),
+        };
+      default: // today
+        return {
+          'period': 'today',
+          'date_from': _fmtDate(now),
+          'date_to': _fmtDate(now),
+        };
+    }
+  }
+
   Future<void> _load() async {
     if (_site == null) return;
     setState(() => _loading = true);
     try {
-      final data = await _api.get('/api/sync-sales.php', {
+      // 1) Sync les ventes depuis le routeur vers la base locale
+      await _api.post('/api/sync-sales.php', {
+        'site_id': _site!.id,
+      });
+    } catch (_) {
+      // sync fail is non-blocking — continue with cached data
+    }
+    try {
+      // 2) Lire les ventes filtrées depuis la base locale
+      final range = _computeDateRange();
+      final data = await _api.get('/api/report-sales.php', {
         'site_id': _site!.id.toString(),
+        ...range,
       });
       _allSales = (data['sales'] as List? ?? []).cast<Map<String, dynamic>>();
-      _applyPeriodFilter();
+      _applyFilter();
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }
 
-  void _applyPeriodFilter() {
+  void _applyFilter() {
     var filtered = _allSales;
-
-    if (_period != 'all') {
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-
-      filtered = filtered.where((s) {
-        final dateStr = s['sale_date']?.toString() ?? '';
-        final date = DateTime.tryParse(dateStr);
-        if (date == null) return false;
-
-        return switch (_period) {
-          'today' => date.year == today.year && date.month == today.month && date.day == today.day,
-          'week' => date.isAfter(today.subtract(const Duration(days: 7))),
-          'month' => date.year == today.year && date.month == today.month,
-          _ => true,
-        };
-      }).toList();
-    }
 
     if (_search.isNotEmpty) {
       final q = _search.toLowerCase();
@@ -451,10 +477,8 @@ class _SalesScreenState extends State<SalesScreen> {
                           ('all', 'Tout', AppTheme.success),
                         ])
                           _buildChip(f.$2, _period == f.$1, f.$3, () {
-                            setState(() {
-                              _period = f.$1;
-                              _applyPeriodFilter();
-                            });
+                            setState(() => _period = f.$1);
+                            _load();
                           }, isDark),
                       ],
                     ),
@@ -480,7 +504,7 @@ class _SalesScreenState extends State<SalesScreen> {
                           onChanged: (v) {
                             _debounce?.cancel();
                             _debounce = Timer(const Duration(milliseconds: 300), () {
-                              setState(() { _search = v; _applyPeriodFilter(); });
+                              setState(() { _search = v; _applyFilter(); });
                             });
                           },
                           decoration: InputDecoration(
@@ -496,7 +520,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                     padding: const EdgeInsets.only(right: 6),
                                     child: IconButton(
                                       icon: Icon(Icons.close_rounded, color: Colors.grey.shade400, size: 20),
-                                      onPressed: () { _searchController.clear(); setState(() { _search = ''; _applyPeriodFilter(); }); },
+                                      onPressed: () { _searchController.clear(); setState(() { _search = ''; _applyFilter(); }); },
                                     ),
                                   )
                                 : null,
@@ -586,14 +610,19 @@ class _SalesScreenState extends State<SalesScreen> {
                                         ),
                                         const SizedBox(height: 3),
                                         Text(
-                                          '${s['profile_name'] ?? '-'}  ${s['sale_date'] ?? ''}',
+                                          '${s['profile_name'] ?? '-'}  ·  ${s['date_fmt'] ?? s['sale_date'] ?? ''}',
                                           style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                                         ),
+                                        if (s['point_name'] != null && s['point_name'].toString().isNotEmpty)
+                                          Text(
+                                            s['point_name'].toString(),
+                                            style: TextStyle(fontSize: 11, color: AppTheme.primary.withValues(alpha: 0.7)),
+                                          ),
                                       ],
                                     ),
                                   ),
                                   Text(
-                                    Fmt.currency(_toNum(s['price'])),
+                                    Fmt.currency(_toNum(s['price']) - _toNum(s['discount'])),
                                     style: TextStyle(
                                       color: isVoid ? Colors.grey : AppTheme.success,
                                       fontWeight: FontWeight.w700,
