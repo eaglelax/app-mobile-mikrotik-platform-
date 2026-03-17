@@ -77,17 +77,20 @@ pw.Widget _buildTicket({
 }) {
   final code = (t['code'] ?? t['name'] ?? '').toString();
   final uptime =
-      (t['uptime'] ?? t['limit_uptime'] ?? t['duration'] ?? '').toString();
-  final price = t['price'];
+      (t['uptime'] ?? t['limit_uptime'] ?? t['profile_limit_uptime'] ?? t['duration'] ?? '').toString();
+  // Resolve price: prefer ticket_price from profile, fallback to ticket's stored price
+  // Handle case where price is 0 (not null) but ticket_price has the real value
+  final rawPrice = t['price'];
+  final profilePrice = t['ticket_price'];
+  final price = _resolvePrice(rawPrice) ?? _resolvePrice(profilePrice);
   final point =
       (t['point'] ?? t['point_name'] ?? '').toString();
 
   // Footer: durée · prix  ou juste profil
   final footParts = <String>[];
   if (uptime.isNotEmpty) footParts.add(uptime);
-  if (price != null) {
-    final p = price is num ? price : num.tryParse(price.toString());
-    if (p != null && p > 0) footParts.add(Fmt.currency(p, currency));
+  if (price != null && price > 0) {
+    footParts.add(Fmt.currency(price, currency));
   }
   if (footParts.isEmpty) {
     final profile =
@@ -215,4 +218,12 @@ pw.Widget _buildTicket({
       ],
     ),
   );
+}
+
+/// Parse a dynamic value to num, returning null if 0 or unparseable.
+num? _resolvePrice(dynamic val) {
+  if (val == null) return null;
+  final p = val is num ? val : num.tryParse(val.toString());
+  if (p == null || p <= 0) return null;
+  return p;
 }
