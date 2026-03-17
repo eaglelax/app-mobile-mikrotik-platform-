@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'formatters.dart';
 
 /// Génère un PDF de tickets au format web (6 colonnes, pages remplies auto).
+/// Style aligné sur l'app web : nom site, code, mot de passe, durée, prix, point.
 /// Par défaut sauvegarde dans le dossier temporaire (pour partage).
 /// Avec [toDownloads] = true, sauvegarde dans le dossier Téléchargements.
 Future<File> generateTicketsPdf({
@@ -76,48 +77,47 @@ pw.Widget _buildTicket({
   required String currency,
 }) {
   final code = (t['code'] ?? t['name'] ?? '').toString();
-  final uptime =
-      (t['uptime'] ?? t['limit_uptime'] ?? t['profile_limit_uptime'] ?? t['duration'] ?? '').toString();
-  // Resolve price: prefer ticket_price from profile, fallback to ticket's stored price
-  // Handle case where price is 0 (not null) but ticket_price has the real value
-  final rawPrice = t['price'];
-  final profilePrice = t['ticket_price'];
-  final price = _resolvePrice(rawPrice) ?? _resolvePrice(profilePrice);
-  final point =
-      (t['point'] ?? t['point_name'] ?? '').toString();
+  final password = (t['password'] ?? t['code'] ?? '').toString();
+  final uptime = (t['uptime'] ??
+          t['limit_uptime'] ??
+          t['profile_limit_uptime'] ??
+          t['duration'] ??
+          '')
+      .toString();
+  final profile = (t['profile'] ?? t['profile_name'] ?? '').toString();
+  final point = (t['point'] ?? t['point_name'] ?? '').toString();
 
-  // Footer: durée · prix  ou juste profil
-  final footParts = <String>[];
-  if (uptime.isNotEmpty) footParts.add(uptime);
-  if (price != null && price > 0) {
-    footParts.add(Fmt.currency(price, currency));
-  }
-  if (footParts.isEmpty) {
-    final profile =
-        (t['profile'] ?? t['profile_name'] ?? '').toString();
-    if (profile.isNotEmpty) footParts.add(profile);
-  }
-  final footLine = footParts.join(' \u00b7 ');
+  // Resolve price
+  final price = _resolvePrice(t['price']) ?? _resolvePrice(t['ticket_price']);
+
+  // Colors matching web app
+  final headerBg = PdfColor.fromHex('#1e293b');
+  final blue = PdfColor.fromHex('#1a73e8');
+  final red = PdfColor.fromHex('#e53935');
+  final grey = PdfColor.fromHex('#666666');
+  final lightGrey = PdfColor.fromHex('#999999');
+  final footerBg = PdfColor.fromHex('#f5f5f5');
+  final borderColor = PdfColor.fromHex('#374151');
+  final black = PdfColor.fromHex('#000000');
 
   return pw.Container(
     width: ticketWidth,
     decoration: pw.BoxDecoration(
-      border: pw.Border.all(
-          width: 0.3, color: PdfColor.fromHex('#374151')),
-      borderRadius: pw.BorderRadius.circular(3),
+      border: pw.Border.all(width: 0.5, color: borderColor),
+      borderRadius: pw.BorderRadius.circular(2),
     ),
     child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.center,
       children: [
-        // ── Dark header ──
+        // ── Header: Site name + ticket number ──
         pw.Container(
           width: double.infinity,
-          padding:
-              const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2.5),
+          padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2.5),
           decoration: pw.BoxDecoration(
-            color: PdfColor.fromHex('#1e293b'),
+            color: headerBg,
             borderRadius: const pw.BorderRadius.only(
-              topLeft: pw.Radius.circular(2.5),
-              topRight: pw.Radius.circular(2.5),
+              topLeft: pw.Radius.circular(1.5),
+              topRight: pw.Radius.circular(1.5),
             ),
           ),
           child: pw.Row(
@@ -136,7 +136,7 @@ pw.Widget _buildTicket({
                 ),
               ),
               pw.Text(
-                '#${index + 1}',
+                '[${index + 1}]',
                 style: pw.TextStyle(
                   fontSize: 5,
                   color: PdfColor.fromHex('#94a3b8'),
@@ -147,31 +147,66 @@ pw.Widget _buildTicket({
           ),
         ),
 
-        // ── Body: label + code ──
+        // ── Body: Code + Password + Details ──
         pw.Container(
-          padding:
-              const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+          width: double.infinity,
+          padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
           child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
-              pw.Text(
-                'MOT DE PASSE',
-                style: pw.TextStyle(
-                  fontSize: 5,
-                  color: PdfColor.fromHex('#94a3b8'),
-                  letterSpacing: 0.3,
-                ),
-              ),
-              pw.SizedBox(height: 1.5),
+              // Code (username) — blue, bold, monospace
               pw.Text(
                 code,
                 style: pw.TextStyle(
                   fontSize: 9,
                   fontWeight: pw.FontWeight.bold,
                   font: pw.Font.courierBold(),
-                  letterSpacing: 0.5,
-                  color: PdfColor.fromHex('#0f172a'),
+                  letterSpacing: 0.8,
+                  color: blue,
                 ),
               ),
+              pw.SizedBox(height: 1.5),
+              // Password — bold, monospace, with background
+              pw.Container(
+                padding:
+                    const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                decoration: pw.BoxDecoration(
+                  color: footerBg,
+                  borderRadius: pw.BorderRadius.circular(1),
+                ),
+                child: pw.Text(
+                  password,
+                  style: pw.TextStyle(
+                    fontSize: 7.5,
+                    fontWeight: pw.FontWeight.bold,
+                    font: pw.Font.courierBold(),
+                    letterSpacing: 0.5,
+                    color: black,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 2),
+              // Details: durée / validité
+              if (uptime.isNotEmpty)
+                pw.Text(
+                  uptime,
+                  style: pw.TextStyle(
+                    fontSize: 5.5,
+                    color: grey,
+                  ),
+                ),
+              // Prix — rouge, gros, bold (comme le web)
+              if (price != null && price > 0) ...[
+                pw.SizedBox(height: 1.5),
+                pw.Text(
+                  Fmt.currency(price, currency),
+                  style: pw.TextStyle(
+                    fontSize: 7.5,
+                    fontWeight: pw.FontWeight.bold,
+                    color: red,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -185,7 +220,7 @@ pw.Widget _buildTicket({
               style: pw.TextStyle(
                 fontSize: 5,
                 fontWeight: pw.FontWeight.bold,
-                color: PdfColor.fromHex('#2563eb'),
+                color: blue,
               ),
               textAlign: pw.TextAlign.center,
               maxLines: 1,
@@ -193,26 +228,25 @@ pw.Widget _buildTicket({
             ),
           ),
 
-        // ── Footer: durée · prix ──
+        // ── Footer: profil ou durée ──
         pw.Container(
           width: double.infinity,
-          padding:
-              const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2.5),
+          padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           decoration: pw.BoxDecoration(
-            color: PdfColor.fromHex('#f0f4f8'),
             border: pw.Border(
               top: pw.BorderSide(
-                  width: 0.3, color: PdfColor.fromHex('#cbd5e1')),
+                  width: 0.3, color: PdfColor.fromHex('#dddddd')),
             ),
           ),
           child: pw.Text(
-            footLine,
+            profile.isNotEmpty ? profile : siteName,
             style: pw.TextStyle(
-              fontSize: 6,
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColor.fromHex('#334155'),
+              fontSize: 5,
+              color: lightGrey,
             ),
             textAlign: pw.TextAlign.center,
+            maxLines: 1,
+            overflow: pw.TextOverflow.clip,
           ),
         ),
       ],
