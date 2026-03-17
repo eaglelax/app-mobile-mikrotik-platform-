@@ -341,6 +341,58 @@ class _TunnelDetailScreenState extends State<TunnelDetailScreen> {
                         ),
                       if (hasSlug && isActive) const SizedBox(height: 16),
 
+                      // Direct permanent port links
+                      if (isActive && (_tunnel['forwarded_api_port'] != null || _tunnel['forwarded_winbox_port'] != null))
+                        Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: shadow),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Acces direct (permanent)', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textColor)),
+                              const SizedBox(height: 4),
+                              Text('Ports forwarded sans limite de temps', style: TextStyle(fontSize: 12, color: subtitleColor)),
+                              const SizedBox(height: 14),
+                              if (_tunnel['forwarded_api_port'] != null)
+                                _directPortTile(
+                                  label: 'Mikhmon',
+                                  icon: Icons.web,
+                                  color: AppTheme.primary,
+                                  address: 'vpn1.tikadmin.com:${_tunnel['forwarded_api_port']}',
+                                  targetPort: '8728',
+                                  textColor: textColor,
+                                  isDark: isDark,
+                                ),
+                              if (_tunnel['forwarded_winbox_port'] != null) ...[
+                                const SizedBox(height: 8),
+                                _directPortTile(
+                                  label: 'Winbox',
+                                  icon: Icons.settings_remote,
+                                  color: Colors.orange,
+                                  address: 'vpn1.tikadmin.com:${_tunnel['forwarded_winbox_port']}',
+                                  targetPort: '8291',
+                                  textColor: textColor,
+                                  isDark: isDark,
+                                ),
+                              ],
+                              if (_tunnel['forwarded_web_port'] != null) ...[
+                                const SizedBox(height: 8),
+                                _directPortTile(
+                                  label: 'Web',
+                                  icon: Icons.language,
+                                  color: AppTheme.success,
+                                  address: 'http://vpn1.tikadmin.com:${_tunnel['forwarded_web_port']}',
+                                  targetPort: '80',
+                                  textColor: textColor,
+                                  isDark: isDark,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      if (isActive && (_tunnel['forwarded_api_port'] != null || _tunnel['forwarded_winbox_port'] != null))
+                        const SizedBox(height: 16),
+
                       // Deploy commands
                       Container(
                         padding: const EdgeInsets.all(18),
@@ -418,6 +470,49 @@ class _TunnelDetailScreenState extends State<TunnelDetailScreen> {
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _directPortTile({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required String address,
+    required String targetPort,
+    required Color textColor,
+    required bool isDark,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        Clipboard.setData(ClipboardData(text: address));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$label copie: $address'), duration: const Duration(seconds: 2)),
+          );
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.15)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 10),
+            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(address, style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: textColor), overflow: TextOverflow.ellipsis),
+            ),
+            Text('→ :$targetPort', style: TextStyle(fontSize: 10, color: isDark ? Colors.grey.shade500 : Colors.grey.shade400)),
+            const SizedBox(width: 6),
+            Icon(Icons.copy, size: 13, color: isDark ? Colors.grey.shade500 : Colors.grey.shade400),
           ],
         ),
       ),
