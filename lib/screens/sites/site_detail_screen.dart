@@ -49,15 +49,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
   Timer? _countdownTimer;
   int _tokenSecondsLeft = 0;
 
-  // Gateway access (temporary secure links)
-  Map<String, dynamic>? _mikhmonAccess;
-  Map<String, dynamic>? _winboxAccess;
-  bool _loadingMikhmon = false;
-  bool _loadingWinbox = false;
-  Timer? _mikhmonTimer;
-  Timer? _winboxTimer;
-  int _mikhmonTtl = 0;
-  int _winboxTtl = 0;
 
   @override
   void initState() {
@@ -72,8 +63,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
   @override
   void dispose() {
     _countdownTimer?.cancel();
-    _mikhmonTimer?.cancel();
-    _winboxTimer?.cancel();
     super.dispose();
   }
 
@@ -117,88 +106,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
       }
     } catch (_) {
       if (mounted) setState(() => _loadingToken = false);
-    }
-  }
-
-  Future<void> _requestGateway(String action) async {
-    final slug = _siteTunnel?['slug']?.toString();
-    if (slug == null || slug.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Slug du tunnel introuvable'), backgroundColor: AppTheme.danger),
-      );
-      return;
-    }
-
-    final isMikhmon = action == 'mikhmon';
-    setState(() {
-      if (isMikhmon) {
-        _loadingMikhmon = true;
-      } else {
-        _loadingWinbox = true;
-      }
-    });
-
-    try {
-      final result = await _tunnelService.gatewayAccess(slug, action);
-      if (!mounted) return;
-      if (result['success'] == true) {
-        final ttl = result['ttl'] ?? 300;
-        if (isMikhmon) {
-          _mikhmonTimer?.cancel();
-          setState(() {
-            _mikhmonAccess = result;
-            _mikhmonTtl = ttl;
-            _loadingMikhmon = false;
-          });
-          _mikhmonTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-            if (_mikhmonTtl <= 0) {
-              _mikhmonTimer?.cancel();
-              if (mounted) setState(() => _mikhmonAccess = null);
-            } else {
-              if (mounted) setState(() => _mikhmonTtl--);
-            }
-          });
-        } else {
-          _winboxTimer?.cancel();
-          setState(() {
-            _winboxAccess = result;
-            _winboxTtl = ttl;
-            _loadingWinbox = false;
-          });
-          _winboxTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-            if (_winboxTtl <= 0) {
-              _winboxTimer?.cancel();
-              if (mounted) setState(() => _winboxAccess = null);
-            } else {
-              if (mounted) setState(() => _winboxTtl--);
-            }
-          });
-        }
-      } else {
-        setState(() {
-          if (isMikhmon) {
-            _loadingMikhmon = false;
-          } else {
-            _loadingWinbox = false;
-          }
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['error'] ?? 'Erreur'), backgroundColor: AppTheme.danger),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          if (isMikhmon) {
-            _loadingMikhmon = false;
-          } else {
-            _loadingWinbox = false;
-          }
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppTheme.danger),
-        );
-      }
     }
   }
 
@@ -336,7 +243,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     final auth = context.read<AuthProvider>();
     final isAdmin = auth.isAdmin;
     final tunnelIsActive = _siteTunnel?['status'] == 'active';
-    final hasSlug = (_siteTunnel?['slug']?.toString() ?? '').isNotEmpty;
+
 
     return Scaffold(
       backgroundColor: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
@@ -523,50 +430,10 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                                   const SizedBox(height: 10),
                                   Text('IP VPN: ${_siteTunnel!['vpn_ip'] ?? '-'}', style: TextStyle(fontSize: 12, color: subtitleColor)),
 
-                                  // Secure access links (for all users)
-                                  if (tunnelIsActive && hasSlug) ...[
-                                    const SizedBox(height: 16),
-                                    Text('Acces securise', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: textColor)),
-                                    const SizedBox(height: 10),
-
-                                    // Mikhmon
-                                    _gatewayAccessTile(
-                                      icon: Icons.web,
-                                      label: 'Mikhmon',
-                                      color: AppTheme.primary,
-                                      isLoading: _loadingMikhmon,
-                                      accessData: _mikhmonAccess,
-                                      ttl: _mikhmonTtl,
-                                      onRequest: () => _requestGateway('mikhmon'),
-                                      textColor: textColor,
-                                      subtitleColor: subtitleColor,
-                                      isDark: isDark,
-                                    ),
-                                    const SizedBox(height: 8),
-
-                                    // Winbox
-                                    _gatewayAccessTile(
-                                      icon: Icons.settings_remote,
-                                      label: 'WinBox',
-                                      color: Colors.orange,
-                                      isLoading: _loadingWinbox,
-                                      accessData: _winboxAccess,
-                                      ttl: _winboxTtl,
-                                      onRequest: () => _requestGateway('winbox'),
-                                      textColor: textColor,
-                                      subtitleColor: subtitleColor,
-                                      isDark: isDark,
-                                    ),
-                                  ],
-
                                   // Direct permanent port links
                                   if (tunnelIsActive && (_siteTunnel!['forwarded_api_port'] != null || _siteTunnel!['forwarded_winbox_port'] != null)) ...[
                                     const SizedBox(height: 16),
-                                    Divider(color: dividerColor),
-                                    const SizedBox(height: 10),
-                                    Text('Acces direct (permanent)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: textColor)),
-                                    const SizedBox(height: 4),
-                                    Text('Ports forwarded sans limite de temps', style: TextStyle(fontSize: 11, color: subtitleColor)),
+                                    Text('Acces distant', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: textColor)),
                                     const SizedBox(height: 10),
                                     if (_siteTunnel!['forwarded_api_port'] != null)
                                       _directPortTile(
@@ -755,107 +622,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
             Icon(Icons.copy, size: 13, color: isDark ? Colors.grey.shade500 : Colors.grey.shade400),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _gatewayAccessTile({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required bool isLoading,
-    required Map<String, dynamic>? accessData,
-    required int ttl,
-    required VoidCallback onRequest,
-    required Color textColor,
-    required Color subtitleColor,
-    required bool isDark,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.darkBg : const Color(0xFFF5F6FA),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 34, height: 34,
-                decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-                child: Icon(icon, size: 16, color: color),
-              ),
-              const SizedBox(width: 10),
-              Expanded(child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor))),
-              if (accessData == null)
-                SizedBox(
-                  height: 32,
-                  child: ElevatedButton(
-                    onPressed: isLoading ? null : onRequest,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: color,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      elevation: 0,
-                    ),
-                    child: isLoading
-                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('Ouvrir', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                  ),
-                ),
-            ],
-          ),
-          if (accessData != null) ...[
-            const SizedBox(height: 8),
-            GestureDetector(
-              onTap: () {
-                final addr = '${accessData['host']}:${accessData['port']}';
-                _copy(addr, label);
-              },
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: color.withValues(alpha: 0.2)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.link, size: 14, color: color),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        '${accessData['host']}:${accessData['port']}',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, fontFamily: 'monospace', color: color),
-                      ),
-                    ),
-                    Icon(Icons.copy, size: 14, color: color),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(Icons.timer, size: 12, color: ttl > 60 ? AppTheme.success : Colors.orange),
-                const SizedBox(width: 4),
-                Text(
-                  'Expire dans ${_fmtCountdown(ttl)}',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: ttl > 60 ? AppTheme.success : Colors.orange),
-                ),
-                const Spacer(),
-                if (accessData['client_ip'] != null)
-                  Text('IP: ${accessData['client_ip']}', style: TextStyle(fontSize: 10, color: subtitleColor)),
-                const SizedBox(width: 6),
-                GestureDetector(onTap: onRequest, child: Icon(Icons.refresh, size: 14, color: subtitleColor)),
-              ],
-            ),
-          ],
-        ],
       ),
     );
   }
