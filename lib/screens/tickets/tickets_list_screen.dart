@@ -100,12 +100,13 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
     if (mounted) setState(() => _loadingMore = false);
   }
 
-  /// Limite d'items en mémoire pour éviter le freeze UI
-  static const int _maxItemsInMemory = 500;
+  /// Limite d'items en mémoire — ListView.builder ne rend que les items visibles,
+  /// donc 25000 petits Map en mémoire (~5MB) ne pose aucun problème.
+  static const int _maxItemsInMemory = 25000;
 
   Future<void> _fetchPage(int page) async {
     try {
-      final data = await _service.fetchTickets(_site!.id, page: page, limit: 50, forceRefresh: _forceRefresh && page == 1);
+      final data = await _service.fetchTickets(_site!.id, page: page, limit: 200, forceRefresh: _forceRefresh && page == 1);
       if (data['success'] == false) {
         if (page == 1) {
           _error = data['error']?.toString() ?? 'Erreur de chargement';
@@ -113,21 +114,12 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
         }
       } else {
         final list = data['vouchers'] ?? data['tickets'];
-        // Limiter la réponse API à _maxItemsInMemory items max
-        final rawList = (list is List ? list : []).cast<Map<String, dynamic>>();
-        final newTickets = rawList.length > _maxItemsInMemory
-            ? rawList.sublist(0, _maxItemsInMemory)
-            : rawList;
+        final newTickets = (list is List ? list : []).cast<Map<String, dynamic>>();
 
         if (page == 1) {
           _allTickets = newTickets;
         } else {
           _allTickets.addAll(newTickets);
-          // Cap total en mémoire
-          if (_allTickets.length > _maxItemsInMemory) {
-            _allTickets = _allTickets.sublist(0, _maxItemsInMemory);
-            _hasMore = false;
-          }
         }
 
         _currentPage = page;
@@ -695,9 +687,23 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                               addRepaintBoundaries: true,
                               itemBuilder: (ctx, i) {
                                 if (i == _tickets.length) {
-                                  return const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 24),
-                                    child: Center(child: CircularProgressIndicator()),
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 24),
+                                    child: Center(
+                                      child: Column(
+                                        children: [
+                                          const SizedBox(
+                                            width: 24, height: 24,
+                                            child: CircularProgressIndicator(strokeWidth: 2.5),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Chargement... ${_allTickets.length}/$_totalTickets',
+                                            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   );
                                 }
                                 return _buildTicketCard(_tickets[i], isDark);
