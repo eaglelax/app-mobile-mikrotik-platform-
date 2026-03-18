@@ -34,8 +34,10 @@ class MikhmonService {
   }
 
   Future<Map<String, dynamic>> fetchProfiles(int siteId) async {
-    return await _api
-        .get('/api/mikhmon-profiles.php', {'site_id': siteId.toString()});
+    return await _api.getCached('/api/mikhmon-profiles.php',
+        params: {'site_id': siteId.toString()},
+        ttl: const Duration(seconds: 30),
+        timeout: const Duration(seconds: 60));
   }
 
   Future<Map<String, dynamic>> addHotspotUser(

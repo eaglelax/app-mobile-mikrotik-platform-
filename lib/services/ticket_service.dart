@@ -4,17 +4,23 @@ class TicketService {
   final _api = ApiClient();
 
   Future<Map<String, dynamic>> fetchTickets(int siteId,
-      {String? status, int page = 1, int limit = 50}) async {
+      {String? status, int page = 1, int limit = 50, bool forceRefresh = false}) async {
     final params = <String, String>{
       'site_id': siteId.toString(),
       'page': page.toString(),
       'limit': limit.toString(),
+      'action': 'vouchers',
     };
     if (status != null) params['status'] = status;
-    return await _api.get('/api/hotspot.php', {
-      ...params,
-      'action': 'vouchers',
-    }, const Duration(seconds: 60));
+
+    // Utiliser le cache stale-while-revalidate pour un affichage instantané
+    if (forceRefresh) {
+      _api.invalidateCache('/api/hotspot.php');
+    }
+    return await _api.getCached('/api/hotspot.php',
+        params: params,
+        ttl: const Duration(seconds: 30),
+        timeout: const Duration(seconds: 60));
   }
 
   Future<Map<String, dynamic>> generateBatch(int siteId,

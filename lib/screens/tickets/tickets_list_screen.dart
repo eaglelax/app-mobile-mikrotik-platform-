@@ -76,8 +76,11 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
     }
   }
 
-  Future<void> _load() async {
+  bool _forceRefresh = false;
+
+  Future<void> _load({bool forceRefresh = false}) async {
     if (_site == null) return;
+    _forceRefresh = forceRefresh;
     setState(() {
       _loading = true;
       _error = null;
@@ -86,6 +89,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
       _allTickets = [];
     });
     await _fetchPage(1);
+    _forceRefresh = false;
     if (mounted) setState(() => _loading = false);
   }
 
@@ -98,7 +102,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
 
   Future<void> _fetchPage(int page) async {
     try {
-      final data = await _service.fetchTickets(_site!.id, page: page, limit: 50);
+      final data = await _service.fetchTickets(_site!.id, page: page, limit: 50, forceRefresh: _forceRefresh && page == 1);
       if (data['success'] == false) {
         if (page == 1) {
           _error = data['error']?.toString() ?? 'Erreur de chargement';
@@ -426,7 +430,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
         ),
         body: SafeArea(
           child: RefreshIndicator(
-            onRefresh: _load,
+            onRefresh: () => _load(forceRefresh: true),
             child: Column(
               children: [
                 // Header

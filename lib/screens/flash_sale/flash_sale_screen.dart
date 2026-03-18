@@ -50,7 +50,9 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
   Future<void> _loadGerantProfiles(int siteId, int? pointId) async {
     setState(() { _loadingProfiles = true; _error = null; });
     try {
-      final data = await _api.get(ApiConfig.flashSale, {'site_id': siteId.toString()});
+      final data = await _api.getCached(ApiConfig.flashSale,
+          params: {'site_id': siteId.toString()},
+          ttl: const Duration(seconds: 30));
       if (data['success'] == true) {
         final list = data['profiles'] as List? ?? [];
         setState(() {
@@ -92,7 +94,9 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
       _error = null;
     });
     try {
-      final data = await _api.get(ApiConfig.flashSale, {'site_id': site.id.toString()});
+      final data = await _api.getCached(ApiConfig.flashSale,
+          params: {'site_id': site.id.toString()},
+          ttl: const Duration(seconds: 30));
       if (data['success'] == true) {
         final list = data['profiles'] as List? ?? [];
         final pts = data['points'] as List? ?? [];
