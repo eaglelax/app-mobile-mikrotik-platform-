@@ -4,8 +4,10 @@ class MikhmonService {
   final _api = ApiClient();
 
   Future<Map<String, dynamic>> fetchDashboard(int siteId) async {
-    return await _api
-        .get('/api/mikhmon-stats.php', {'site_id': siteId.toString()});
+    return await _api.getCached('/api/mikhmon-stats.php',
+        params: {'site_id': siteId.toString()},
+        ttl: const Duration(seconds: 30),
+        timeout: const Duration(seconds: 60));
   }
 
   Future<Map<String, dynamic>> fetchHotspotUsers(int siteId) async {
