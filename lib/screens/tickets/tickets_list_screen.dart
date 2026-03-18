@@ -742,110 +742,109 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
     };
     final statusLabel = AppConstants.ticketStatuses[status] ?? status;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: isDark ? AppTheme.darkCard : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: isDark ? null : Border.all(color: Colors.grey.shade200, width: 0.5),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            // Ticket icon
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(Icons.confirmation_number, color: statusColor, size: 22),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: isDark ? null : Border.all(color: Colors.grey.shade200, width: 0.5),
+      ),
+      child: Row(
+        children: [
+          // Ticket icon
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
             ),
-            const SizedBox(width: 12),
+            child: Icon(Icons.confirmation_number, color: statusColor, size: 22),
+          ),
+          const SizedBox(width: 12),
 
-            // Code + profile info + price
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(t['code'] ?? '',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontFamily: 'monospace',
-                        letterSpacing: 1.5,
-                        fontSize: 14,
-                        color: isDark ? Colors.white : const Color(0xFF1A1D21),
-                      )),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text(
+          // Code + profile info + price
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(t['code'] ?? '',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontFamily: 'monospace',
+                      letterSpacing: 1.5,
+                      fontSize: 14,
+                      color: isDark ? Colors.white : const Color(0xFF1A1D21),
+                    )),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
                         '${t['profile'] ?? t['profile_name'] ?? '-'}  ${t['limit_uptime'] ?? ''}',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey.shade500,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      if (_resolvePrice(t['price']) != null) ...[
-                        const SizedBox(width: 6),
-                        Text(
-                          '${_resolvePrice(t['price'])!.toStringAsFixed(0)}F',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.orange.shade300 : Colors.orange.shade700,
-                          ),
+                    ),
+                    if (_resolvePrice(t['price']) != null) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '${_resolvePrice(t['price'])!.toStringAsFixed(0)}F',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.orange.shade300 : Colors.orange.shade700,
                         ),
-                      ],
+                      ),
                     ],
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ),
+          ),
 
-            const SizedBox(width: 8),
+          const SizedBox(width: 8),
 
-            // Status badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(statusLabel,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  )),
+          // Status badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
             ),
+            child: Text(statusLabel,
+                style: TextStyle(
+                  color: statusColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                )),
+          ),
 
-            // PopupMenu for available tickets only
-            if (status == 'available')
-              PopupMenuButton(
-                icon: Icon(Icons.more_vert,
-                    size: 20,
-                    color: isDark ? Colors.white54 : Colors.grey.shade400),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                color: isDark ? AppTheme.darkCard : Colors.white,
-                itemBuilder: (_) => [
-                  const PopupMenuItem(
-                      value: 'cancel',
-                      child: Text('Annuler',
-                          style: TextStyle(color: AppTheme.danger))),
-                ],
-                onSelected: (action) {
-                  if (action == 'cancel') {
-                    _cancelTicket(t);
-                  }
-                },
-              ),
-          ],
-        ),
-        ),
+          // PopupMenu for available tickets only
+          if (status == 'available')
+            PopupMenuButton(
+              icon: Icon(Icons.more_vert,
+                  size: 20,
+                  color: isDark ? Colors.white54 : Colors.grey.shade400),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              color: isDark ? AppTheme.darkCard : Colors.white,
+              itemBuilder: (_) => [
+                const PopupMenuItem(
+                    value: 'cancel',
+                    child: Text('Annuler',
+                        style: TextStyle(color: AppTheme.danger))),
+              ],
+              onSelected: (action) {
+                if (action == 'cancel') {
+                  _cancelTicket(t);
+                }
+              },
+            ),
+        ],
       ),
     );
   }
