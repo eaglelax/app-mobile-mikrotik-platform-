@@ -56,15 +56,37 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
     });
   }
 
+  String? _error;
+
   Future<void> _load() async {
     if (_site == null) return;
-    setState(() => _loading = true);
+    setState(() { _loading = true; _error = null; });
     try {
       final data = await _service.fetchTickets(_site!.id);
-      _allTickets =
-          (data['vouchers'] ?? data['tickets'] as List? ?? []).cast<Map<String, dynamic>>();
+      if (data['success'] == false) {
+        _error = data['error']?.toString() ?? 'Erreur de chargement';
+        _allTickets = [];
+      } else {
+        final list = data['vouchers'] ?? data['tickets'];
+        _allTickets = (list is List ? list : []).cast<Map<String, dynamic>>();
+        _error = null;
+        // Avertissement si fallback DB
+        if (data['warning'] != null && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['warning'].toString()),
+              backgroundColor: Colors.orange.shade700,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
       _applyFilter();
-    } catch (_) {}
+    } catch (e) {
+      _error = 'Erreur réseau: $e';
+      _allTickets = [];
+      _applyFilter();
+    }
     if (mounted) setState(() => _loading = false);
   }
 
@@ -548,15 +570,51 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.confirmation_number_outlined,
-                                            size: 48, color: Colors.grey.shade300),
+                                        Icon(
+                                            _error != null
+                                                ? Icons.wifi_off_rounded
+                                                : Icons.confirmation_number_outlined,
+                                            size: 48,
+                                            color: _error != null
+                                                ? AppTheme.danger.withValues(alpha: 0.5)
+                                                : Colors.grey.shade300),
                                         const SizedBox(height: 12),
-                                        Text('Aucun ticket',
+                                        Text(
+                                            _error != null
+                                                ? 'Erreur de connexion'
+                                                : 'Aucun ticket',
                                             style: TextStyle(
                                               fontSize: 15,
-                                              color: Colors.grey.shade400,
+                                              color: _error != null
+                                                  ? AppTheme.danger
+                                                  : Colors.grey.shade400,
                                               fontWeight: FontWeight.w500,
                                             )),
+                                        if (_error != null) ...[
+                                          const SizedBox(height: 8),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 32),
+                                            child: Text(_error!,
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey.shade500,
+                                                )),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          ElevatedButton.icon(
+                                            onPressed: _load,
+                                            icon: const Icon(Icons.refresh, size: 18),
+                                            label: const Text('Réessayer'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppTheme.primary,
+                                              foregroundColor: Colors.white,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ],
                                     ),
                                   ),
