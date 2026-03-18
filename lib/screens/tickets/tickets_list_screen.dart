@@ -678,6 +678,9 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                               controller: _scrollController,
                               padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
                               itemCount: _tickets.length + (_hasMore && !_loading ? 1 : 0),
+                              // Optimisation : ne pas builder les items hors écran
+                              addAutomaticKeepAlives: false,
+                              addRepaintBoundaries: true,
                               itemBuilder: (ctx, i) {
                                 if (i == _tickets.length) {
                                   return const Padding(
@@ -740,20 +743,15 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
     final statusLabel = AppConstants.ticketStatuses[status] ?? status;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Container(
-        padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.only(bottom: 8),
+      child: DecoratedBox(
         decoration: BoxDecoration(
           color: isDark ? AppTheme.darkCard : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(14),
+          border: isDark ? null : Border.all(color: Colors.grey.shade200, width: 0.5),
         ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
         child: Row(
           children: [
             // Ticket icon
@@ -846,6 +844,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                 },
               ),
           ],
+        ),
         ),
       ),
     );
