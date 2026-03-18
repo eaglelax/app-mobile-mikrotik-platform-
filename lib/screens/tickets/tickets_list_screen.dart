@@ -30,9 +30,17 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
   Timer? _debounce;
   Timer? _autoRefresh;
 
+  // Pagination
+  int _currentPage = 1;
+  bool _hasMore = true;
+  bool _loadingMore = false;
+  int _totalTickets = 0;
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _site = widget.site;
     if (_site != null) {
       _load();
@@ -46,6 +54,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
     _debounce?.cancel();
     _searchController.dispose();
     _siteSearchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -58,20 +67,59 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
 
   String? _error;
 
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 300 &&
+        !_loadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
+  }
+
   Future<void> _load() async {
     if (_site == null) return;
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+      _currentPage = 1;
+      _hasMore = true;
+      _allTickets = [];
+    });
+    await _fetchPage(1);
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _loadMore() async {
+    if (_site == null || _loadingMore || !_hasMore) return;
+    setState(() => _loadingMore = true);
+    await _fetchPage(_currentPage + 1);
+    if (mounted) setState(() => _loadingMore = false);
+  }
+
+  Future<void> _fetchPage(int page) async {
     try {
-      final data = await _service.fetchTickets(_site!.id);
+      final data = await _service.fetchTickets(_site!.id, page: page, limit: 50);
       if (data['success'] == false) {
-        _error = data['error']?.toString() ?? 'Erreur de chargement';
-        _allTickets = [];
+        if (page == 1) {
+          _error = data['error']?.toString() ?? 'Erreur de chargement';
+          _allTickets = [];
+        }
       } else {
         final list = data['vouchers'] ?? data['tickets'];
-        _allTickets = (list is List ? list : []).cast<Map<String, dynamic>>();
+        final newTickets = (list is List ? list : []).cast<Map<String, dynamic>>();
+
+        if (page == 1) {
+          _allTickets = newTickets;
+        } else {
+          _allTickets.addAll(newTickets);
+        }
+
+        _currentPage = page;
+        _hasMore = data['has_more'] == true;
+        _totalTickets = data['total'] ?? _allTickets.length;
         _error = null;
-        // Avertissement si fallback DB
-        if (data['warning'] != null && mounted) {
+
+        if (page == 1 && data['warning'] != null && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(data['warning'].toString()),
@@ -83,11 +131,12 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
       }
       _applyFilter();
     } catch (e) {
-      _error = 'Erreur réseau: $e';
-      _allTickets = [];
-      _applyFilter();
+      if (page == 1) {
+        _error = 'Erreur réseau: $e';
+        _allTickets = [];
+        _applyFilter();
+      }
     }
-    if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _cancelTicket(Map<String, dynamic> ticket) async {
@@ -548,7 +597,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                               fontWeight: FontWeight.w500,
                             )),
                         const Spacer(),
-                        Text('${_allTickets.length} au total',
+                        Text('${_totalTickets > 0 ? _totalTickets : _allTickets.length} au total',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey.shade400,
@@ -622,9 +671,18 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                               ],
                             )
                           : ListView.builder(
+                              controller: _scrollController,
                               padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
-                              itemCount: _tickets.length,
-                              itemBuilder: (ctx, i) => _buildTicketCard(_tickets[i], isDark),
+                              itemCount: _tickets.length + (_hasMore && !_loading ? 1 : 0),
+                              itemBuilder: (ctx, i) {
+                                if (i == _tickets.length) {
+                                  return const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 24),
+                                    child: Center(child: CircularProgressIndicator()),
+                                  );
+                                }
+                                return _buildTicketCard(_tickets[i], isDark);
+                              },
                             ),
                 ),
               ],
