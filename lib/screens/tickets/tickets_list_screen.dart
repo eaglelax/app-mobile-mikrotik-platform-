@@ -658,6 +658,13 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
     );
   }
 
+  num? _resolvePrice(dynamic val) {
+    if (val == null) return null;
+    final p = val is num ? val : num.tryParse(val.toString());
+    if (p == null || p <= 0) return null;
+    return p;
+  }
+
   // ── Ticket Card ─────────────────────────────────────────────────────
 
   Widget _buildTicketCard(Map<String, dynamic> t, bool isDark) {
@@ -699,7 +706,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
             ),
             const SizedBox(width: 12),
 
-            // Code + profile info
+            // Code + profile info + price
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -713,12 +720,27 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                         color: isDark ? Colors.white : const Color(0xFF1A1D21),
                       )),
                   const SizedBox(height: 4),
-                  Text(
-                    '${t['profile'] ?? t['profile_name'] ?? '-'}  ${t['limit_uptime'] ?? ''}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade500,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        '${t['profile'] ?? t['profile_name'] ?? '-'}  ${t['limit_uptime'] ?? ''}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                      if (_resolvePrice(t['price']) != null) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          '${_resolvePrice(t['price'])!.toStringAsFixed(0)}F',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? Colors.orange.shade300 : Colors.orange.shade700,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
