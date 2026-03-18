@@ -11,7 +11,10 @@ class SiteService {
     return sites.map((s) => Site.fromJson(s)).toList();
   }
 
-  Future<Map<String, dynamic>> fetchStats(int siteId) async {
+  Future<Map<String, dynamic>> fetchStats(int siteId, {bool forceRefresh = false}) async {
+    if (forceRefresh) {
+      _api.invalidateCache('/api/site-stats.php');
+    }
     return await _api.getCached('/api/site-stats.php',
         params: {'site_id': siteId.toString()},
         ttl: const Duration(seconds: 30));

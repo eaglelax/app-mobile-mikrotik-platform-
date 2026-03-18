@@ -118,12 +118,12 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
 
   String _fmtCountdown(int s) => '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
 
-  Future<void> _loadStats() async {
+  Future<void> _loadStats({bool forceRefresh = false}) async {
     setState(() => _loading = true);
     try {
       // Parallel fetch: site stats + mikhmon dashboard
       final results = await Future.wait([
-        _siteService.fetchStats(widget.site.id),
+        _siteService.fetchStats(widget.site.id, forceRefresh: forceRefresh),
         _mikhmonService.fetchDashboard(widget.site.id).catchError((_) => <String, dynamic>{}),
       ]);
 
@@ -269,7 +269,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                       ],
                     ),
                   ),
-                  IconButton(icon: Icon(Icons.refresh_rounded, color: textColor), onPressed: _loadStats),
+                  IconButton(icon: Icon(Icons.refresh_rounded, color: textColor), onPressed: () => _loadStats(forceRefresh: true)),
                 ],
               ),
             ),
@@ -279,7 +279,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : RefreshIndicator(
-                      onRefresh: _loadStats,
+                      onRefresh: () => _loadStats(forceRefresh: true),
                       child: ListView(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         children: [
