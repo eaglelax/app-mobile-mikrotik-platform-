@@ -100,6 +100,9 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
     if (mounted) setState(() => _loadingMore = false);
   }
 
+  /// Limite d'items en mémoire pour éviter le freeze UI
+  static const int _maxItemsInMemory = 500;
+
   Future<void> _fetchPage(int page) async {
     try {
       final data = await _service.fetchTickets(_site!.id, page: page, limit: 50, forceRefresh: _forceRefresh && page == 1);
@@ -110,16 +113,25 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
         }
       } else {
         final list = data['vouchers'] ?? data['tickets'];
-        final newTickets = (list is List ? list : []).cast<Map<String, dynamic>>();
+        // Limiter la réponse API à _maxItemsInMemory items max
+        final rawList = (list is List ? list : []).cast<Map<String, dynamic>>();
+        final newTickets = rawList.length > _maxItemsInMemory
+            ? rawList.sublist(0, _maxItemsInMemory)
+            : rawList;
 
         if (page == 1) {
           _allTickets = newTickets;
         } else {
           _allTickets.addAll(newTickets);
+          // Cap total en mémoire
+          if (_allTickets.length > _maxItemsInMemory) {
+            _allTickets = _allTickets.sublist(0, _maxItemsInMemory);
+            _hasMore = false;
+          }
         }
 
         _currentPage = page;
-        _hasMore = data['has_more'] == true;
+        _hasMore = data['has_more'] == true && _allTickets.length < _maxItemsInMemory;
         _totalTickets = data['total'] ?? _allTickets.length;
         _error = null;
 
