@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
+import 'package:crypto/crypto.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 
@@ -112,9 +114,9 @@ class _PinScreenState extends State<PinScreen> {
         }
       }
     } else {
-      // Verify PIN
+      // Verify PIN (compare hashed values)
       final saved = await _getSavedPin();
-      if (_pin == saved) {
+      if (_hashPin(_pin) == saved) {
         if (mounted) context.read<AuthProvider>().onPinVerified();
       } else {
         setState(() {
@@ -126,14 +128,19 @@ class _PinScreenState extends State<PinScreen> {
     }
   }
 
+  static const _secureStorage = FlutterSecureStorage();
+
+  String _hashPin(String pin) {
+    final bytes = utf8.encode(pin);
+    return sha256.convert(bytes).toString();
+  }
+
   Future<void> _savePin(String pin) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_pin', pin);
+    await _secureStorage.write(key: 'user_pin', value: _hashPin(pin));
   }
 
   Future<String?> _getSavedPin() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('user_pin');
+    return await _secureStorage.read(key: 'user_pin');
   }
 
   Future<void> _logout() async {

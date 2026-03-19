@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../providers/auth_provider.dart';
+import '../providers/connectivity_provider.dart';
 import '../providers/notification_provider.dart';
+import '../services/api_client.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/gerant/gerant_dashboard_screen.dart';
 import '../screens/sites/sites_list_screen.dart';
@@ -19,16 +22,78 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _currentIndex = 0;
+  StreamSubscription<void>? _logoutSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen for force-logout events from ApiClient (401 + failed relogin)
+    _logoutSub = ApiClient.onLogoutStream.listen((_) {
+      if (mounted) {
+        context.read<AuthProvider>().logout();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _logoutSub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final connectivity = context.watch<ConnectivityProvider>();
     final isGerant = auth.user?.isGerant ?? false;
 
+    Widget shell;
     if (isGerant) {
-      return _buildGerantShell(context, auth);
+      shell = _buildGerantShell(context, auth);
+    } else {
+      shell = _buildFullShell(context);
     }
-    return _buildFullShell(context);
+
+    // Wrap with offline banner
+    if (connectivity.isOffline) {
+      return Column(
+        children: [
+          _buildOfflineBanner(context),
+          Expanded(child: shell),
+        ],
+      );
+    }
+    return shell;
+  }
+
+  Widget _buildOfflineBanner(BuildContext context) {
+    return Material(
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.only(
+          top: MediaQuery.of(context).padding.top + 4,
+          bottom: 6,
+          left: 16,
+          right: 16,
+        ),
+        color: Colors.orange.shade800,
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.wifi_off, color: Colors.white, size: 16),
+            SizedBox(width: 8),
+            Text(
+              'Pas de connexion internet',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // --- Full navigation (admin / regular user) ---

@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import 'cache_service.dart';
 
@@ -21,20 +23,24 @@ class ApiClient {
   String? _bearerToken;
   String? _csrfToken;
   bool _isRefreshing = false;
-  SharedPreferences? _prefs;
   final _cache = CacheService();
+  final _secureStorage = const FlutterSecureStorage();
+
+  /// Static callback that the app shell can listen to for forced logout events.
+  /// Set this from your AuthProvider or app initialization.
+  static VoidCallback? onForceLogout;
+
+  /// Stream controller for logout events (alternative to callback).
+  static final StreamController<void> _logoutController =
+      StreamController<void>.broadcast();
+  static Stream<void> get onLogoutStream => _logoutController.stream;
 
   String get baseUrl => ApiConfig.baseUrl;
 
-  Future<SharedPreferences> get _prefsInstance async {
-    _prefs ??= await SharedPreferences.getInstance();
-    return _prefs!;
-  }
-
   Future<void> init() async {
-    final prefs = await _prefsInstance;
-    _bearerToken = prefs.getString('bearer_token');
-    _csrfToken = prefs.getString('csrf_token');
+    // Load tokens from secure storage
+    _bearerToken = await _secureStorage.read(key: 'bearer_token');
+    _csrfToken = await _secureStorage.read(key: 'csrf_token');
   }
 
   Map<String, String> get _headers => {
@@ -44,11 +50,10 @@ class ApiClient {
         if (_csrfToken != null) 'X-CSRF-Token': _csrfToken!,
       };
 
-  /// Save login credentials for auto-re-login
+  /// Save login credentials for auto-re-login (secure storage)
   Future<void> saveCredentials(String email, String password) async {
-    final prefs = await _prefsInstance;
-    await prefs.setString('auth_email', email);
-    await prefs.setString('auth_password', password);
+    await _secureStorage.write(key: 'auth_email', value: email);
+    await _secureStorage.write(key: 'auth_password', value: password);
   }
 
   /// Try to re-login with saved credentials
@@ -56,9 +61,8 @@ class ApiClient {
     if (_isRefreshing) return false;
     _isRefreshing = true;
     try {
-      final prefs = await _prefsInstance;
-      final email = prefs.getString('auth_email');
-      final password = prefs.getString('auth_password');
+      final email = await _secureStorage.read(key: 'auth_email');
+      final password = await _secureStorage.read(key: 'auth_password');
       if (email == null || password == null) return false;
 
       final uri = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.login}');
@@ -79,11 +83,20 @@ class ApiClient {
         }
       }
       return false;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Auto-relogin failed: $e');
       return false;
     } finally {
       _isRefreshing = false;
     }
+  }
+
+  /// Handle 401 after relogin failure: clear tokens and trigger global logout.
+  void _triggerForceLogout() {
+    debugPrint('ApiClient: Force logout triggered (401 + relogin failed)');
+    clearSession();
+    onForceLogout?.call();
+    _logoutController.add(null);
   }
 
   Future<Map<String, dynamic>> get(String endpoint,
@@ -103,6 +116,8 @@ class ApiClient {
         response = await http
             .get(uri, headers: _headers)
             .timeout(timeout ?? ApiConfig.timeout);
+      } else {
+        _triggerForceLogout();
       }
     }
 
@@ -128,6 +143,8 @@ class ApiClient {
         response = await http
             .post(uri, headers: _headers, body: jsonEncode(payload))
             .timeout(effectiveTimeout);
+      } else {
+        _triggerForceLogout();
       }
     }
 
@@ -161,6 +178,8 @@ class ApiClient {
                 },
                 body: fields)
             .timeout(ApiConfig.timeout);
+      } else {
+        _triggerForceLogout();
       }
     }
 
@@ -190,34 +209,34 @@ class ApiClient {
     _bearerToken = null;
     _csrfToken = null;
     _cache.clear();
-    final prefs = await _prefsInstance;
-    await prefs.remove('bearer_token');
-    await prefs.remove('csrf_token');
-    await prefs.remove('auth_email');
-    await prefs.remove('auth_password');
+    // Clear secure storage
+    await _secureStorage.delete(key: 'bearer_token');
+    await _secureStorage.delete(key: 'csrf_token');
+    await _secureStorage.delete(key: 'auth_email');
+    await _secureStorage.delete(key: 'auth_password');
   }
 
   void setToken(String token) {
     _bearerToken = token;
-    _prefsInstance.then((p) => p.setString('bearer_token', token));
+    _secureStorage.write(key: 'bearer_token', value: token);
   }
 
   void setCsrfToken(String token) {
     _csrfToken = token;
-    _prefsInstance.then((p) => p.setString('csrf_token', token));
+    _secureStorage.write(key: 'csrf_token', value: token);
   }
 
-  /// GET with in-memory cache (stale-while-revalidate pattern).
+  /// GET with cache (stale-while-revalidate pattern).
   /// Returns cached/stale data immediately if available, refreshes in background.
   Future<Map<String, dynamic>> getCached(String endpoint,
       {Map<String, String>? params, Duration? ttl, Duration? timeout}) async {
     final cacheKey = _buildCacheKey(endpoint, params);
 
-    // Fresh cache hit → return immediately
+    // Fresh cache hit -> return immediately
     final cached = _cache.get(cacheKey);
     if (cached != null) return cached;
 
-    // Stale data exists → return it immediately, refresh in background
+    // Stale data exists -> return it immediately, refresh in background
     final stale = _cache.getStale(cacheKey);
     if (stale != null) {
       // Fire-and-forget background refresh
@@ -227,7 +246,7 @@ class ApiClient {
       return stale;
     }
 
-    // No cache at all → fetch from network
+    // No cache at all -> fetch from network
     final data = await get(endpoint, params, timeout);
     _cache.set(cacheKey, data, ttl);
     return data;
@@ -244,7 +263,8 @@ class ApiClient {
 
   String _buildCacheKey(String endpoint, Map<String, String>? params) {
     if (params == null || params.isEmpty) return endpoint;
-    final sorted = params.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+    final sorted = params.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
     return '$endpoint?${sorted.map((e) => '${e.key}=${e.value}').join('&')}';
   }
 }

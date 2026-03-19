@@ -10,10 +10,12 @@ class NotificationProvider with ChangeNotifier {
   List<AppNotification> _notifications = [];
   int _unreadCount = 0;
   bool _isLoading = false;
+  String? _error;
 
   List<AppNotification> get notifications => _notifications;
   int get unreadCount => _unreadCount;
   bool get isLoading => _isLoading;
+  String? get error => _error;
 
   void updateAuth(AuthProvider auth) {
     final wasAuth = _auth?.isAuthenticated ?? false;
@@ -27,12 +29,19 @@ class NotificationProvider with ChangeNotifier {
     if (_auth?.isAuthenticated != true) return;
     try {
       _unreadCount = await _service.fetchUnreadCount();
+      _error = null;
       notifyListeners();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Notification error: $e');
+      _unreadCount = 0;
+      _error = 'Erreur chargement notifications';
+      notifyListeners();
+    }
   }
 
   Future<void> fetchAll() async {
     _isLoading = true;
+    _unreadCount = 0;
     notifyListeners();
 
     try {
@@ -42,7 +51,12 @@ class NotificationProvider with ChangeNotifier {
                                     : (data['notifications'] as List? ?? []);
       _notifications = list.map((n) => AppNotification.fromJson(n as Map<String, dynamic>)).toList();
       _unreadCount = _notifications.where((n) => !n.isRead).length;
-    } catch (_) {}
+      _error = null;
+    } catch (e) {
+      debugPrint('Notification error: $e');
+      _error = 'Erreur chargement notifications';
+      _unreadCount = 0;
+    }
 
     _isLoading = false;
     notifyListeners();
@@ -56,7 +70,9 @@ class NotificationProvider with ChangeNotifier {
         _unreadCount = (_unreadCount - 1).clamp(0, 999);
       }
       notifyListeners();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Notification error: $e');
+    }
   }
 
   Future<void> markAllRead() async {
@@ -64,6 +80,8 @@ class NotificationProvider with ChangeNotifier {
       await _service.markAllRead();
       _unreadCount = 0;
       notifyListeners();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Notification error: $e');
+    }
   }
 }

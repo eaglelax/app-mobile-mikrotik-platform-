@@ -18,6 +18,10 @@ dependencies:
   http: ^1.2.0
   # Local storage
   shared_preferences: ^2.2.2
+  flutter_secure_storage: ^9.0.0
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  crypto: ^3.0.3
   # UI
   fl_chart: ^0.66.0
   qr_flutter: ^4.1.0

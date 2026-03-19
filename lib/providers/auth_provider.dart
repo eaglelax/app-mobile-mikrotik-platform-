@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/api_client.dart';
 
 class AuthProvider with ChangeNotifier {
   final _authService = AuthService();
+  final _secureStorage = const FlutterSecureStorage();
   User? _user;
   bool _isLoading = true;
   String? _error;
@@ -31,9 +32,9 @@ class AuthProvider with ChangeNotifier {
     await ApiClient().init();
     _user = await _authService.getSavedUser();
 
-    // Check if user has a PIN set
-    final prefs = await SharedPreferences.getInstance();
-    _hasPin = prefs.getString('user_pin') != null;
+    // Check if user has a PIN set (stored in secure storage)
+    final pin = await _secureStorage.read(key: 'user_pin');
+    _hasPin = pin != null;
     _pinVerified = false;
 
     _isLoading = false;
@@ -49,8 +50,8 @@ class AuthProvider with ChangeNotifier {
       _user = await _authService.login(email, password);
 
       // After first login, check if PIN exists
-      final prefs = await SharedPreferences.getInstance();
-      _hasPin = prefs.getString('user_pin') != null;
+      final pin = await _secureStorage.read(key: 'user_pin');
+      _hasPin = pin != null;
       if (!_hasPin) {
         _needsPinSetup = true;
       }
@@ -61,11 +62,13 @@ class AuthProvider with ChangeNotifier {
       return true;
     } on ApiException catch (e) {
       _error = e.message;
+      _user = null;
       _isLoading = false;
       notifyListeners();
       return false;
     } catch (e) {
       _error = 'Erreur de connexion: $e';
+      _user = null;
       _isLoading = false;
       notifyListeners();
       return false;
@@ -86,8 +89,12 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> logout() async {
     await _authService.logout();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('user_pin');
+    // Clear all secure storage (PIN, tokens, credentials)
+    await _secureStorage.delete(key: 'user_pin');
+    await _secureStorage.delete(key: 'bearer_token');
+    await _secureStorage.delete(key: 'csrf_token');
+    await _secureStorage.delete(key: 'auth_email');
+    await _secureStorage.delete(key: 'auth_password');
     _user = null;
     _pinVerified = false;
     _hasPin = false;
